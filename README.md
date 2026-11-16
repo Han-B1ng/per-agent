@@ -68,6 +68,12 @@ python3 -m http.server 8123
 - 仓库**不含任何真实密钥/凭据**；扫描仅命中 React 内部符号名与 input type 字符串。
 - `.env`、`*.pem`、`*.key`、`credentials.json`、`node_modules/`、`dist/` 等已被 `.gitignore` 排除；只提交 `.env.example` 占位。
 
+## 开发流程
+
+日常改动走独立任务分支，经 PR 合入 `main`，不要直接在 `main` 上堆大改。开工先读 [AGENTS.md](AGENTS.md)。创建 PR 时按模板写明动机、改动范围和实际验证结果。
+
+完整约定见 Linear：[GitHub 全流程开发规范](https://linear.app/han-b1ng/document/github-全流程开发规范分支pr合并发布与仓库维护-d5f0745cd928)。
+
 ## 关键文档
 
 - [设计初稿](docs/design/design-draft-v0.1.md) · [算法规格（权威）](docs/design/agent-engine-spec-v0.1.md) · [决策记录](docs/decisions/decision-log.md) · [赛事要求](docs/competition/rules.md) · [协作任务表](docs/collab/tasks.md) · [作品帖提纲](docs/submission/post-outline.md)
