@@ -1,0 +1,23 @@
+# 依赖与构建产物
+node_modules/
+dist/
+build/
+*.log
+
+# 环境变量与凭据（只提交 .env.example 占位）
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# 系统 / 编辑器 / 测试产物
+.DS_Store
+.idea/
+.vscode/
+test-results/
+playwright-report/
+
+# Qoder 本地会话产物
+.qoder/
