@@ -1,0 +1,262 @@
+[
+  {
+    "name": "A[1440x900] 首屏样例",
+    "pass": true,
+    "detail": "1,156.9"
+  },
+  {
+    "name": "A[1440x900] 首次点输入框K线不动",
+    "pass": true,
+    "detail": "{\"mode\":\"market\",\"transform\":\"none\",\"opacity\":\"1\",\"filter\":\"none\",\"w\":1120,\"h\":513,\"x\":160,\"y\":65}"
+  },
+  {
+    "name": "A[1440x900] 单条消息未溢出仍market",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "A[1440x900] 溢出后focus放大渐隐",
+    "pass": true,
+    "detail": "matrix(1.24, 0, 0, 1.24, 0, 0) 0.13 blur(3px)"
+  },
+  {
+    "name": "A[1440x900] 消息独立滚动+输入框留底部",
+    "pass": true,
+    "detail": "{\"scrollable\":true,\"atBottom\":true,\"cb\":862,\"vh\":900}"
+  },
+  {
+    "name": "A[1440x900] 返回行情恢复",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "A[1440x900] 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "A[1440x720] 首屏样例",
+    "pass": true,
+    "detail": "1,156.9"
+  },
+  {
+    "name": "A[1440x720] 首次点输入框K线不动",
+    "pass": true,
+    "detail": "{\"mode\":\"market\",\"transform\":\"none\",\"opacity\":\"1\",\"filter\":\"none\",\"w\":1120,\"h\":372.609375,\"x\":160,\"y\":65}"
+  },
+  {
+    "name": "A[1440x720] 单条消息未溢出仍market",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "A[1440x720] 溢出后focus放大渐隐",
+    "pass": true,
+    "detail": "matrix(1.24, 0, 0, 1.24, 0, 0) 0.13 blur(3px)"
+  },
+  {
+    "name": "A[1440x720] 消息独立滚动+输入框留底部",
+    "pass": true,
+    "detail": "{\"scrollable\":true,\"atBottom\":true,\"cb\":685.609375,\"vh\":720}"
+  },
+  {
+    "name": "A[1440x720] 返回行情恢复",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "A[1440x720] 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "B 行为计分情绪不计分 → 1010",
+    "pass": true,
+    "detail": "1010"
+  },
+  {
+    "name": "B 明细含行为+1%与情绪0%",
+    "pass": true,
+    "detail": "[{\"lab\":\"行为 · 正向 强度3\",\"contrib\":\"+1.00%\"},{\"lab\":\"情绪记录\",\"contrib\":\"0.00%\"}]"
+  },
+  {
+    "name": "B 模糊过去→pending追问且不计分",
+    "pass": true,
+    "detail": "quote=1010 card=true"
+  },
+  {
+    "name": "B 确认后计一次 → 1020.0(同日raw相加)",
+    "pass": true,
+    "detail": "1020"
+  },
+  {
+    "name": "B 确认后卡片消失(不重复应用)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "B 撤销后图表+明细一起更新",
+    "pass": true,
+    "detail": "before=1,020.0 after=1,010.0 quote=1010"
+  },
+  {
+    "name": "B 刷新后记录/确认态/指数一致",
+    "pass": true,
+    "detail": "quote=1010 msgs=4"
+  },
+  {
+    "name": "B 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "C 涨停 clamp +6% → 1060",
+    "pass": true,
+    "detail": "1060"
+  },
+  {
+    "name": "C 三段式 原始+24% 调整-18% 实际+6%",
+    "pass": true,
+    "detail": "[\"原始 +24.00%\",\"涨跌停 -18.00%\",\"实际 +6.00%\"]"
+  },
+  {
+    "name": "C 第9条超上限贡献0 + 情绪不占名额",
+    "pass": true,
+    "detail": "capNote=true zero=2"
+  },
+  {
+    "name": "C 刷新复算同周收盘",
+    "pass": true,
+    "detail": "1,060.0 == 1,060.0"
+  },
+  {
+    "name": "C 撤销1条后上限空缺被补满(超上限标记消失)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "C 再撤销1条原始收益降为21%",
+    "pass": true,
+    "detail": "[\"原始 +21.00%\",\"涨跌停 -15.00%\",\"实际 +6.00%\"]"
+  },
+  {
+    "name": "C 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "D health=model",
+    "pass": true,
+    "detail": "模型在线"
+  },
+  {
+    "name": "D 额度耗尽→未录入且指数不变",
+    "pass": true,
+    "detail": "tag=true quote=1000"
+  },
+  {
+    "name": "D 降级后样例仍可查看",
+    "pass": true,
+    "detail": "1156.9"
+  },
+  {
+    "name": "D 改用本地识别重试成功录入",
+    "pass": true,
+    "detail": "1010"
+  },
+  {
+    "name": "D 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "E health=model(stub)",
+    "pass": true,
+    "detail": "模型在线"
+  },
+  {
+    "name": "E model路径结构化记录计分→1010",
+    "pass": true,
+    "detail": "1010"
+  },
+  {
+    "name": "E model路径明细2行(情绪+行为)",
+    "pass": true,
+    "detail": "2"
+  },
+  {
+    "name": "E 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "F 低置信休息→pending追问且无停牌增益",
+    "pass": true,
+    "detail": "quote=1000 btn=确认休息"
+  },
+  {
+    "name": "F 确认后按确认日期停牌生效一次→1001.5",
+    "pass": true,
+    "detail": "1001.5"
+  },
+  {
+    "name": "F 确认后刷新状态一致",
+    "pass": true,
+    "detail": "1001.5"
+  },
+  {
+    "name": "F1 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "F 否认后退出待确认且指数不变",
+    "pass": true,
+    "detail": "quote=1000 gone=true"
+  },
+  {
+    "name": "F 否认后刷新状态一致",
+    "pass": true,
+    "detail": "1000"
+  },
+  {
+    "name": "F2 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "G 历史pending加入后指数仍1000",
+    "pass": true,
+    "detail": "1000"
+  },
+  {
+    "name": "G 确认后按7天前重算(≈1005.97)",
+    "pass": true,
+    "detail": "1006"
+  },
+  {
+    "name": "G 否认后指数仍1000",
+    "pass": true,
+    "detail": "1000"
+  },
+  {
+    "name": "G 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "H 完成后历史逾期收盘保留",
+    "pass": true,
+    "detail": "{\"before\":[{\"date\":\"2026-11-16\",\"close\":\"收 996.0\"},{\"date\":\"2026-11-17\",\"close\":\"收 992.0\"}],\"after\":[{\"date\":\"2026-11-16\",\"close\":\"收 996.0\"},{\"date\":\"2026-11-17\",\"close\":\"收 1,002.0\"}]}"
+  },
+  {
+    "name": "H 完成增益只计一次",
+    "pass": true,
+    "detail": "1"
+  },
+  {
+    "name": "H 控制台0报错",
+    "pass": true,
+    "detail": "clean"
+  }
+]

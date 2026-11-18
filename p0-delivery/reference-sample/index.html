@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0c0e">
+  <meta name="description" content="个人成长指数桌面交互样板">
+  <title>Personal Economy · 个人成长指数</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <div class="workspace" data-mode="market">
+    <header class="topbar">
+      <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i></span>Personal Economy</div>
+      <div class="toolbar"><span class="sample"><i></i>本地演示</span><button id="view-toggle" type="button" hidden>返回行情</button><button id="reset" type="button">重置对话</button></div>
+    </header>
+
+    <main class="stage" aria-label="个人成长指数与对话">
+      <section class="market" aria-labelledby="market-title">
+        <div class="market-summary">
+          <div>
+            <h1 id="market-title">个人成长指数</h1>
+            <div class="quote"><strong>1,128.6</strong><span>+2.96%</span></div>
+          </div>
+          <dl class="market-stats"><div><dt>本周开盘</dt><dd>1,096.2</dd></div><div><dt>本周最高</dt><dd>1,138.4</dd></div><div><dt>本周最低</dt><dd>1,091.8</dd></div></dl>
+        </div>
+        <div class="chart">
+          <div class="chart-heading"><span>走势</span><span>周 K</span></div>
+          <div class="plot"><canvas id="candles" role="img" aria-label="样例周 K 走势，近三个月从约 1000 点升至 1128.6 点"></canvas></div>
+        </div>
+      </section>
+
+      <section class="conversation" aria-label="对话">
+        <header class="conversation-heading"><h2>对话</h2></header>
+        <div class="message-scroll" tabindex="0" aria-label="消息记录">
+          <div class="messages" role="log" aria-live="polite" aria-relevant="additions"></div>
+          <p class="empty">今天发生了什么？</p>
+        </div>
+      </section>
+      <div class="conversation-budget" aria-hidden="true"></div>
+    </main>
+
+    <footer class="compose-area">
+      <div class="examples" aria-label="试一句">
+        <button type="button">今天跑了五公里。</button>
+        <button type="button">今天完成了数据库课设。</button>
+        <button type="button">今天有点累，想休息一天。</button>
+      </div>
+      <form class="composer">
+        <label class="sr-only" for="entry">输入消息</label>
+        <textarea id="entry" rows="1" maxlength="1500" placeholder="说说今天发生的事…" aria-describedby="compose-hint"></textarea>
+        <button class="send" type="submit" aria-label="发送" disabled><span aria-hidden="true">↑</span></button>
+      </form>
+      <p class="compose-hint" id="compose-hint">Enter 发送 <span>·</span> Shift + Enter 换行</p>
+    </footer>
+  </div>
+</body>
+</html>
