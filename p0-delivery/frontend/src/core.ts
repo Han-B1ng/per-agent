@@ -22,6 +22,7 @@ type ProtocolModule = {
   noOpReply(receipt: AgentReceipt): string;
   validateAgentWrites(items: ExtractItem[], options: { today?: string; text?: string }): string[];
   sanitizeAgentReply(reply: string, receipt: AgentReceipt): string;
+  hasAdditionalIntent(text: string): boolean;
 };
 const protocolApi = protocol as unknown as ProtocolModule;
 
@@ -102,6 +103,9 @@ export function validateAgentWrites(items: ExtractItem[], options: { today?: str
 }
 export function sanitizeAgentReply(reply: string, receipt: AgentReceipt): string {
   return protocolApi.sanitizeAgentReply(reply, receipt);
+}
+export function hasAdditionalIntent(text: string): boolean {
+  return protocolApi.hasAdditionalIntent(text);
 }
 
 export interface ChartHandle {

@@ -8,6 +8,7 @@ import { resolveDate, resolveDueDate } from "../web/date.js";
 import {
   buildReceipt,
   guardAmbiguousTaskWrites,
+  hasAdditionalIntent,
   matchTaskCandidates,
   normalizeClarification,
   planAgentItems,
@@ -165,6 +166,14 @@ test("未知 ID / 未来日期 / 非法候选被服务端整次拒绝", () => {
   assert.ok(validateExtractItems([{ op: "confirm_event", id: "evt_unknown" }], context).length > 0);
   assert.ok(validateExtractItems([{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: "2026-11-20", quote: "跑", confidence: 0.9 } }], context).length > 0);
   assert.ok(validateExtractItems([{ op: "request_clarification", clarification: { ...CLARIFICATION, candidates: [{ id: "task_unknown", label: "不存在" }] } }], context).length > 0);
+});
+
+test("澄清答复的剩余明确意图可继续交给模型", () => {
+  assert.equal(hasAdditionalIntent("数据库那个"), false);
+  assert.equal(hasAdditionalIntent("第二个"), false);
+  assert.equal(hasAdditionalIntent("数据库那个，今天还跑了五公里"), true);
+  assert.equal(hasAdditionalIntent("数据库那个，有点焦虑"), true);
+  assert.equal(hasAdditionalIntent("数据库那个，明天休息"), true);
 });
 
 test("应用写入前校验：未来日期、非法强度、过去到期日与成功措辞都被拦下", () => {

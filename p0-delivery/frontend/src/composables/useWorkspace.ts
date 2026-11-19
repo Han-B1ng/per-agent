@@ -1,7 +1,7 @@
 import { computed, reactive, ref } from "vue";
 import {
   applyItems, buildReceipt, buildSampleRecords, clearPersonal, computeAll, findRecord, genId, getClientId,
-  getGoals, getTimeline, health, loadPersonal, noOpReply, normalizeClarification, planAgentItems, resolveClarificationReply,
+  getGoals, getTimeline, hasAdditionalIntent, health, loadPersonal, noOpReply, normalizeClarification, planAgentItems, resolveClarificationReply,
   sanitizeAgentReply, savePersonal, send, shiftDate, validateAgentWrites, validateClarificationAgainstLedger, weekStartOf, SAMPLE_META,
 } from "../core";
 import type {
@@ -147,9 +147,13 @@ export function useWorkspace() {
   function buildContext(excludeText = ""): ExtractContext {
     refreshToday();
     const turns = personal.value.chat.filter((m) => !m.failed && m.text).map((m) => ({ role: m.role, content: m.text }));
-    if (excludeText && turns.length) {
-      const last = turns[turns.length - 1];
-      if (last.role === "user" && last.content === excludeText) turns.pop();
+    if (excludeText) {
+      for (let index = turns.length - 1; index >= 0; index -= 1) {
+        if (turns[index].role === "user" && turns[index].content === excludeText) {
+          turns.splice(index, 1);
+          break;
+        }
+      }
     }
     return {
       today: today.value,
@@ -222,9 +226,9 @@ export function useWorkspace() {
     lastExtract.value = { status: "success", mode: "local" };
     persist();
   }
-  function tryResolveClarification(text: string): boolean {
+  function tryResolveClarification(text: string): "none" | "resolved" | "cancelled" | "ambiguous" {
     const active = activeClarifications();
-    if (!active.length) return false;
+    if (!active.length) return "none";
     const results = active.map(({ message, clarification }) => ({
       message,
       clarification,
@@ -234,7 +238,7 @@ export function useWorkspace() {
     if (resolved.length > 1) {
       personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "还有多个待确认事项，你想先处理哪一个？", mode: "local" });
       persist();
-      return true;
+      return "ambiguous";
     }
     if (resolved.length === 1) {
       const { message, clarification, result } = resolved[0];
@@ -242,17 +246,17 @@ export function useWorkspace() {
         markClarification(message, clarification, "cancelled", { text: "用户取消", op: clarification.intent });
         personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "好，这条先不处理。", mode: "local" });
         persist();
-        return true;
+        return "cancelled";
       }
       if (result.item) finishClarification(message, clarification, result.item);
-      return true;
+      return "resolved";
     }
     if (results.some((entry) => entry.result.status === "ambiguous")) {
       personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "还是有点分不清，你指的是哪一个？可以直接说目标名、第几个或到期日。", mode: "local" });
       persist();
-      return true;
+      return "ambiguous";
     }
-    return false;
+    return "none";
   }
   function resolveClarificationCandidate(messageId: string, clarificationId: string, candidateId: string) {
     const message = personal.value.chat.find((entry) => entry.id === messageId);
@@ -326,13 +330,18 @@ export function useWorkspace() {
     const requestId = ++requestSeq;
     activeRequest.value = requestId;
     busy.value = true;
-    const context = buildContext(options.skipUser ? text : "");
+    let context = buildContext(options.skipUser ? text : "");
     if (!options.skipUser) personal.value.chat.push({ id: genId("msg"), role: "user", text });
-    if (tryResolveClarification(text)) {
-      activeRequest.value = null;
-      busy.value = false;
-      composerFocusSignal.value += 1;
-      return;
+    const local = tryResolveClarification(text);
+    if (local !== "none") {
+      const continueWithModel = (local === "resolved" || local === "cancelled") && hasAdditionalIntent(text);
+      if (!continueWithModel) {
+        activeRequest.value = null;
+        busy.value = false;
+        composerFocusSignal.value += 1;
+        return;
+      }
+      context = buildContext(text);
     }
     lastExtract.value = { status: "waiting", text };
     typing.value = true;
