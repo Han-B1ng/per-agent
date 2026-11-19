@@ -234,6 +234,28 @@ const today = localToday();
   await context.close();
 }
 
+/* F. 澄清答复里同时带新动作：先完成目标，剩余明确事项继续入账 */
+{
+  const seed = {
+    events: [], rests: [],
+    tasks: [
+      { id: "task_db", kind: "task", title: "数据库课设", dueAt: shiftDate(today, 3), position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+      { id: "task_algo", kind: "task", title: "算法课设", dueAt: shiftDate(today, 5), position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+    ],
+    chat: [],
+  };
+  const { context, page } = await newPage({ seed });
+  await ensurePersonal(page);
+  await send(page, "课设交了");
+  await send(page, "数据库那个，今天还跑了五公里");
+  const data = await state(page);
+  check("F 澄清答复中的目标先完成", data.tasks.find((task) => task.id === "task_db").status === "done", JSON.stringify(data.tasks.map((task) => [task.id, task.status])));
+  check("F 同一句剩余行为继续入账", data.events.length === 1 && data.events[0].quote.includes("五公里") && data.events[0].status === "confirmed", JSON.stringify(data.events.map((event) => event.quote)));
+  check("F 同一句不完成未匹配目标", data.tasks.find((task) => task.id === "task_algo").status === "open", data.tasks.find((task) => task.id === "task_algo").status);
+  check("F 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
 await browser.close();
 app.close();
 mkdirSync(path.join(ROOT, "assets"), { recursive: true });

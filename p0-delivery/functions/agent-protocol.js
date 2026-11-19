@@ -373,6 +373,11 @@ export function validateAgentWrites(items, { today, text } = {}) {
 }
 
 const SUCCESS_CLAIM = /已(?:经)?(?:记录|写入|完成|计入|记上)|目标已完成|记下了|记上了/;
+const ADDITIONAL_INTENT = /跑|公里|健身|锻炼|散步|读完|看书|读书|复习|背单词|熬夜|刷手机|拖延|翘课|早起|休息|摆烂|请假|放假|焦虑|紧张|压力|开心|高兴|快乐|难过|伤心|低落|累|疲惫|烦|烦躁|孤独|想家|我想|我要|计划|打算|准备/;
+
+export function hasAdditionalIntent(text) {
+  return ADDITIONAL_INTENT.test(String(text || ""));
+}
 export function sanitizeAgentReply(reply, receipt) {
   if (receipt && (receipt.status === "empty" || receipt.status === "clarification") && SUCCESS_CLAIM.test(String(reply || ""))) {
     return receipt.status === "clarification" ? "先确认一下，再写入记录。" : "这条还没有写入，请再确认一下要记录什么。";
