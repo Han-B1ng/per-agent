@@ -157,6 +157,12 @@ canvas { display: block; width: 100%; height: 100%; }
 .badge.paused { background: #d8c98d1f; color: var(--warn); }
 .pos-dots { letter-spacing: 2px; color: var(--warn); }
 .goal-empty, .record-empty { padding: 26px 18px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.records-tabs { display: flex; gap: 4px; margin: 0 0 14px; border-bottom: 1px solid var(--line); }
+.records-tabs button { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 8px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.records-tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--up); }
+.review-week-picker { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
+.review-week-picker select { border: 1px solid #ffffff1f; border-radius: 8px; background: #111216; padding: 6px 8px; color: var(--text); font-size: 11px; color-scheme: dark; }
+.page-view .review-page.review-page { width: 100%; padding-top: 6px; }
 .record-filters { display: grid; grid-template-columns: 145px 145px minmax(150px, 1fr) 130px auto; align-items: end; gap: 10px; padding: 13px; margin-bottom: 12px; }
 .record-filters .check-label { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; }
 .check-label input { width: auto; }
