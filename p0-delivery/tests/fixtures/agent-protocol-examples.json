@@ -1,0 +1,196 @@
+{
+  "protocol": "agent-communication/v0.1",
+  "today": "2026-11-19",
+  "examples": {
+    "newGoal": {
+      "input": "我想周五交数据库课设",
+      "context": {
+        "today": "2026-11-19",
+        "openTasks": [],
+        "pendingEvents": [],
+        "pendingRests": [],
+        "clarifications": [],
+        "turns": []
+      },
+      "response": {
+        "reply": "记下了这个目标，周五到期。",
+        "items": [
+          {
+            "op": "add_task",
+            "task": {
+              "title": "交数据库课设",
+              "dueAt": "2026-11-20",
+              "position": 2,
+              "confidence": 0.9
+            }
+          }
+        ]
+      }
+    },
+    "uniqueCompletion": {
+      "input": "数据库课设交了",
+      "context": {
+        "today": "2026-11-19",
+        "openTasks": [
+          { "id": "task_db", "title": "数据库课设", "dueAt": "2026-11-21", "position": 3 }
+        ],
+        "pendingEvents": [],
+        "pendingRests": [],
+        "clarifications": [],
+        "turns": []
+      },
+      "response": {
+        "reply": "「数据库课设」完成了。",
+        "items": [
+          { "op": "complete_task", "id": "task_db", "doneAt": "2026-11-19" }
+        ]
+      }
+    },
+    "ambiguousMultiIntent": {
+      "input": "课设交了，今天还跑了五公里",
+      "context": {
+        "today": "2026-11-19",
+        "openTasks": [
+          { "id": "task_db", "title": "数据库课设", "dueAt": "2026-11-21", "position": 3 },
+          { "id": "task_algo", "title": "算法课设", "dueAt": "2026-11-24", "position": 3 }
+        ],
+        "pendingEvents": [],
+        "pendingRests": [],
+        "clarifications": [],
+        "turns": []
+      },
+      "response": {
+        "reply": "跑步记下了。你说的课设是哪一个？",
+        "items": [
+          {
+            "op": "add_event",
+            "event": {
+              "eventType": "behavior",
+              "polarity": "positive",
+              "intensity": 2,
+              "occurredAt": "2026-11-19",
+              "quote": "今天还跑了五公里",
+              "tags": [],
+              "confidence": 0.92
+            }
+          },
+          {
+            "op": "request_clarification",
+            "clarification": {
+              "kind": "task_target",
+              "intent": "complete_task",
+              "question": "有两个课设目标，你说的是哪一个？",
+              "sourceText": "课设交了",
+              "candidates": [
+                {
+                  "id": "task_db",
+                  "label": "数据库课设 · 11.21 到期",
+                  "kind": "task",
+                  "title": "数据库课设",
+                  "dueAt": "2026-11-21"
+                },
+                {
+                  "id": "task_algo",
+                  "label": "算法课设 · 11.24 到期",
+                  "kind": "task",
+                  "title": "算法课设",
+                  "dueAt": "2026-11-24"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "clarificationFollowUp": {
+      "input": "数据库那个",
+      "clarification": {
+        "id": "clr_1",
+        "kind": "task_target",
+        "intent": "complete_task",
+        "question": "有两个课设目标，你说的是哪一个？",
+        "sourceText": "课设交了",
+        "status": "pending",
+        "candidates": [
+          {
+            "id": "task_db",
+            "label": "数据库课设 · 11.21 到期",
+            "kind": "task",
+            "title": "数据库课设",
+            "dueAt": "2026-11-21"
+          },
+          {
+            "id": "task_algo",
+            "label": "算法课设 · 11.24 到期",
+            "kind": "task",
+            "title": "算法课设",
+            "dueAt": "2026-11-24"
+          }
+        ]
+      },
+      "expectedApplicationItem": {
+        "op": "complete_task",
+        "id": "task_db",
+        "doneAt": "2026-11-19"
+      }
+    },
+    "vagueDate": {
+      "input": "前阵子跑过五公里",
+      "context": {
+        "today": "2026-11-19",
+        "openTasks": [],
+        "pendingEvents": [],
+        "pendingRests": [],
+        "clarifications": [],
+        "turns": []
+      },
+      "response": {
+        "reply": "这是哪天跑的？告诉我具体日期，我再记进那天的走势。",
+        "items": [
+          {
+            "op": "add_event",
+            "event": {
+              "eventType": "behavior",
+              "polarity": "positive",
+              "intensity": 3,
+              "occurredAt": "2026-11-19",
+              "quote": "前阵子跑过五公里",
+              "tags": [],
+              "confidence": 0.35
+            }
+          }
+        ]
+      },
+      "followUp": {
+        "input": "上周三",
+        "expectedApplicationItem": {
+          "op": "confirm_event",
+          "id": "evt_pending",
+          "occurredAt": "2026-11-11"
+        }
+      }
+    },
+    "duplicateConfirmation": {
+      "input": "数据库课设交了",
+      "applicationResult": {
+        "changed": 0,
+        "receiptStatus": "noop",
+        "visible": "之前已处理，没有重复入账"
+      }
+    },
+    "invalidUnknownId": {
+      "input": "确认这个",
+      "modelResponse": {
+        "reply": "好",
+        "items": [
+          { "op": "confirm_event", "id": "evt_unknown" }
+        ]
+      },
+      "serverResult": {
+        "ok": false,
+        "errorCode": "bad_output",
+        "applied": false
+      }
+    }
+  }
+}

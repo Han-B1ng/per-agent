@@ -194,3 +194,74 @@ test("返工③ mock：pendingRests 确认/否认/补日期", async () => {
   assert.equal(dated.json.items[0].date, "2026-11-11");
   s.close();
 });
+
+test("Agent 协议 mock：新增目标与同名目标澄清经 HTTP 路径生效", async () => {
+  const s = await listen(createApp({ env: {}, staticRoot: fixture() }));
+  const goal = await post(base(s), { text: "我想周五交数据库课设", context: ctx() });
+  assert.equal(goal.json.mode, "mock");
+  assert.equal(goal.json.items[0].op, "add_task");
+  assert.equal(goal.json.items[0].task.dueAt, "2026-11-20");
+
+  const tasks = [
+    { id: "task_db", title: "数据库课设", dueAt: "2026-11-21", position: 3 },
+    { id: "task_algo", title: "算法课设", dueAt: "2026-11-24", position: 3 },
+  ];
+  const mixed = await post(base(s), { text: "课设交了，今天还跑了五公里", context: ctx({ openTasks: tasks }) });
+  assert.equal(mixed.json.ok, true);
+  assert.ok(mixed.json.items.some((item) => item.op === "add_event"));
+  const clarification = mixed.json.items.find((item) => item.op === "request_clarification");
+  assert.ok(clarification);
+  assert.deepEqual(clarification.clarification.candidates.map((candidate) => candidate.id), ["task_db", "task_algo"]);
+  assert.equal(mixed.json.items.some((item) => item.op === "complete_task"), false);
+  s.close();
+});
+
+test("Agent 协议 model stub：合法澄清透传，非法候选/未来日期整次拒绝", async () => {
+  const tasks = [
+    { id: "task_db", title: "数据库课设", dueAt: "2026-11-21", position: 3 },
+    { id: "task_algo", title: "算法课设", dueAt: "2026-11-24", position: 3 },
+  ];
+  const clarificationPayload = {
+    reply: "有两个课设，你说的哪一个？",
+    items: [{
+      op: "request_clarification",
+      clarification: {
+        kind: "task_target",
+        intent: "complete_task",
+        question: "哪一个？",
+        sourceText: "课设交了",
+        candidates: [{ id: "task_db", label: "数据库课设" }, { id: "task_algo", label: "算法课设" }],
+      },
+    }],
+  };
+  const up = await listen(okUpstream(clarificationPayload));
+  const s = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(up) }, staticRoot: fixture() }));
+  const ok = await post(base(s), { text: "课设交了", context: ctx({ openTasks: tasks }) });
+  assert.equal(ok.json.ok, true);
+  assert.equal(ok.json.items[0].op, "request_clarification");
+  assert.deepEqual(ok.json.items[0].clarification.candidates.map((candidate) => candidate.id), ["task_db", "task_algo"]);
+  up.close();
+  s.close();
+
+  const bad = { ...clarificationPayload, items: [{ ...clarificationPayload.items[0], clarification: { ...clarificationPayload.items[0].clarification, candidates: [{ id: "task_unknown", label: "不存在" }] } }] };
+  const upBad = await listen(okUpstream(bad));
+  const sBad = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(upBad) }, staticRoot: fixture() }));
+  const rejected = await post(base(sBad), { text: "课设交了", context: ctx({ openTasks: tasks }) });
+  assert.equal(rejected.json.ok, false);
+  assert.equal(rejected.json.error.code, "bad_output");
+  assert.equal(rejected.json.items, undefined);
+
+  const future = { reply: "未来", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: "2026-11-20", quote: "跑", confidence: 0.9 } }] };
+  const upFuture = await listen(okUpstream(future));
+  const sFuture = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(upFuture) }, staticRoot: fixture() }));
+  const futureRes = await post(base(sFuture), { text: "明天跑了五公里", context: ctx() });
+  assert.equal(futureRes.json.error.code, "bad_output");
+  upBad.close(); sBad.close(); upFuture.close(); sFuture.close();
+
+  const invented = { reply: "创建了", items: [{ op: "add_task", task: { title: "数据库课设", dueAt: "2026-11-26", position: 2, confidence: 0.9 } }] };
+  const upInvented = await listen(okUpstream(invented));
+  const sInvented = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(upInvented) }, staticRoot: fixture() }));
+  const inventedRes = await post(base(sInvented), { text: "我想交数据库课设", context: ctx() });
+  assert.equal(inventedRes.json.error.code, "bad_output");
+  upInvented.close(); sInvented.close();
+});

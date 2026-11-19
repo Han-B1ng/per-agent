@@ -140,3 +140,28 @@ test("function extract：单访客限流明确返回 rate_limited", async () => 
   assert.equal(last.status, 429);
   assert.equal((await last.json()).error.code, "rate_limited");
 });
+test("function Agent 协议：合法澄清候选透传，越界候选整次拒绝", async () => {
+  const tasks = [
+    { id: "task_db", title: "数据库课设", dueAt: "2026-11-21", position: 3 },
+    { id: "task_algo", title: "算法课设", dueAt: "2026-11-24", position: 3 },
+  ];
+  const payload = {
+    reply: "有两个课设，你说的哪一个？",
+    items: [{ op: "request_clarification", clarification: { kind: "task_target", intent: "complete_task", question: "哪一个？", sourceText: "课设交了", candidates: [{ id: "task_db", label: "数据库课设" }, { id: "task_algo", label: "算法课设" }] } }],
+  };
+  const routes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(payload) }] }] } };
+  const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(routes), logger: { info() {} } });
+  const ok = await (await h(post({ text: "课设交了", context: { today: TODAY, openTasks: tasks } }))).json();
+  assert.equal(ok.ok, true);
+  assert.equal(ok.items[0].op, "request_clarification");
+  assert.equal(ok.items[0].clarification.candidates[0].id, "task_db");
+
+  const badPayload = { ...payload, items: [{ ...payload.items[0], clarification: { ...payload.items[0].clarification, candidates: [{ id: "task_unknown", label: "不存在" }] } }] };
+  const badRoutes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(badPayload) }] }] } };
+  const bad = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(badRoutes), logger: { info() {} } });
+  const rejected = await bad(post({ text: "课设交了", context: { today: TODAY, openTasks: tasks } }));
+  assert.equal(rejected.status, 502);
+  const body = await rejected.json();
+  assert.equal(body.error.code, "bad_output");
+  assert.equal(body.items, undefined);
+});
