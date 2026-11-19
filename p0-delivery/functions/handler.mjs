@@ -58,6 +58,9 @@ function mapError(e) {
   if (status === 429 || status === 402) return { code: "quota", message: "模型额度不足或限流，这条没有录入。样例与现有记录仍可查看。" };
   if (status === 401 || status === 403) return { code: "auth", message: "模型凭据无效，这条没有录入。" };
   if (code === "ai_bad_output") return { code: "bad_output", message: "模型返回格式异常，这条没有录入。可以重试。" };
+  if (code === "ai_conflict") return { code: "unavailable", message: "模型服务资源冲突，这条没有录入。可以重试。" };
+  if (code === "ai_access_denied") return { code: "auth", message: "模型凭据无效，这条没有录入。" };
+  if (code === "ai_rate_limited") return { code: "quota", message: "模型额度不足或限流，这条没有录入。样例与现有记录仍可查看。" };
   return { code: "network", message: "连不上模型服务，这条没有录入。可以重试或改用本地识别。" };
 }
 
@@ -75,6 +78,11 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
     return entry.count > 30;
   }
 
+  async function findOwned(resource, match) {
+    const page = await client.request(`/api/v1/cloud/${resource}?limit=100`);
+    return (page.data || []).find(match) || null;
+  }
+
   function ensureBootstrap() {
     if (!bootstrap) {
       bootstrap = (async () => {
@@ -82,8 +90,18 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
         const list = models.data || models.models || [];
         const model = (list.find((m) => m.enabled !== false) || list[0] || {}).id;
         if (!model) throw new CloudAgentsError("ai_not_configured", 503, "not_sent");
-        const agent = await client.request("/api/v1/cloud/agents", { method: "POST", idempotencyKey: "pe-extract-agent-v1", body: { name: "personal-economy-extractor", model, system: buildSystemPrompt({}), tools: [], metadata: { app: "personal-economy" } } });
-        const env = await client.request("/api/v1/cloud/environments", { method: "POST", body: { name: "pe-extract-env", config: { type: "cloud" }, metadata: { app: "personal-economy" } } });
+        const definition = { name: "personal-economy-extractor", model, system: buildSystemPrompt({}), tools: [], metadata: { app: "personal-economy", prompt: "v2" } };
+        let agent;
+        try {
+          agent = await client.request("/api/v1/cloud/agents", { method: "POST", idempotencyKey: "pe-extract-agent-v2", body: definition });
+        } catch (e) {
+          // 同一 Idempotency-Key 的定义已存在且不一致时上游返回 409；复用本应用已创建的 Agent。
+          if (!(e instanceof CloudAgentsError) || e.code !== "ai_conflict") throw e;
+          agent = await findOwned("agents", (a) => a.name === definition.name && a.metadata?.app === "personal-economy");
+          if (!agent) throw e;
+        }
+        let env = await findOwned("environments", (x) => x.metadata?.app === "personal-economy" && x.config?.type === "cloud");
+        if (!env) env = await client.request("/api/v1/cloud/environments", { method: "POST", body: { name: "pe-extract-env", config: { type: "cloud" }, metadata: { app: "personal-economy" } } });
         return { agentId: agent.id, environmentId: env.id };
       })().catch((e) => { bootstrap = null; throw e; });
     }
