@@ -1,0 +1,135 @@
+import { shiftDate, weekStartOf } from "./core";
+import type { ReviewLedger } from "./types";
+
+export type PreviewScene = "data" | "empty";
+
+export function emptyLedger(): ReviewLedger {
+  return { events: [], rests: [], tasks: [] };
+}
+
+export function buildReviewFixture(today: string): ReviewLedger {
+  const weekStart = weekStartOf(today);
+  const previousWeek = shiftDate(weekStart, -7);
+  return {
+    events: [
+      {
+        id: "evt_run",
+        kind: "event",
+        eventType: "behavior",
+        polarity: "positive",
+        intensity: 2,
+        occurredAt: weekStart,
+        quote: "早上跑步五公里，状态回来了",
+        tags: ["运动"],
+        confidence: 0.92,
+        status: "confirmed",
+        createdAt: `${weekStart}T08:10:00.000Z`,
+        deletedAt: null,
+      },
+      {
+        id: "evt_review_note",
+        kind: "event",
+        eventType: "emotion",
+        polarity: "neutral",
+        intensity: 2,
+        occurredAt: today,
+        quote: "复盘时心里踏实了一点",
+        tags: ["复盘"],
+        confidence: 0.88,
+        status: "confirmed",
+        createdAt: `${today}T20:05:00.000Z`,
+        deletedAt: null,
+      },
+      {
+        id: "evt_pending_writing",
+        kind: "event",
+        eventType: "behavior",
+        polarity: "positive",
+        intensity: 3,
+        occurredAt: today,
+        quote: "晚上又写了两小时论文",
+        tags: ["论文"],
+        confidence: 0.42,
+        status: "pending",
+        createdAt: `${today}T22:30:00.000Z`,
+        deletedAt: null,
+      },
+      {
+        id: "evt_prev_reading",
+        kind: "event",
+        eventType: "behavior",
+        polarity: "positive",
+        intensity: 1,
+        occurredAt: shiftDate(previousWeek, 1),
+        quote: "读完了一章专业书",
+        tags: ["阅读"],
+        confidence: 0.9,
+        status: "confirmed",
+        createdAt: `${shiftDate(previousWeek, 1)}T21:00:00.000Z`,
+        deletedAt: null,
+      },
+    ],
+    rests: [],
+    tasks: [
+      {
+        id: "task_done_current",
+        kind: "task",
+        title: "完成数据库课设答辩",
+        dueAt: shiftDate(weekStart, 3),
+        position: 3,
+        status: "done",
+        createdAt: `${shiftDate(today, -24)}T09:00:00.000Z`,
+        doneAt: `${today}T16:20:00.000Z`,
+        deletedAt: null,
+      },
+      {
+        id: "task_active_paper",
+        kind: "task",
+        title: "写完论文第三章",
+        dueAt: shiftDate(today, 9),
+        position: 3,
+        status: "open",
+        createdAt: `${shiftDate(previousWeek, -3)}T09:00:00.000Z`,
+        doneAt: null,
+        deletedAt: null,
+      },
+      {
+        id: "task_overdue_report",
+        kind: "task",
+        title: "补交实验报告",
+        dueAt: shiftDate(weekStart, 1),
+        position: 1,
+        status: "open",
+        createdAt: `${shiftDate(today, -10)}T09:00:00.000Z`,
+        doneAt: null,
+        deletedAt: null,
+      },
+      {
+        id: "task_paused_listening",
+        kind: "task",
+        title: "英语听力精听训练",
+        dueAt: shiftDate(today, 12),
+        position: 2,
+        status: "paused",
+        createdAt: `${shiftDate(today, -18)}T09:00:00.000Z`,
+        doneAt: null,
+        deletedAt: null,
+      },
+      {
+        id: "task_done_previous",
+        kind: "task",
+        title: "整理实验数据",
+        dueAt: shiftDate(previousWeek, 2),
+        position: 2,
+        status: "done",
+        createdAt: `${shiftDate(previousWeek, -20)}T09:00:00.000Z`,
+        doneAt: `${shiftDate(previousWeek, 3)}T10:00:00.000Z`,
+        deletedAt: null,
+      },
+    ],
+  };
+}
+
+export function recordsForScene(scene: PreviewScene, today: string): ReviewLedger {
+  return scene === "empty" ? emptyLedger() : buildReviewFixture(today);
+}
