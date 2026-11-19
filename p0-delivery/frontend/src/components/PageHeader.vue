@@ -10,7 +10,7 @@ const statusText = computed(() => ({ model: "模型在线", mock: "本地 Mock",
 
 <template>
   <header class="topbar">
-    <div class="page-heading">
+    <div class="topbar-heading">
       <button id="nav-menu" type="button" aria-label="打开导航" @click="navOpen = !navOpen">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
       </button>
