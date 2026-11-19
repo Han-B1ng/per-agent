@@ -103,27 +103,37 @@ export function createChart(canvas, { onSelect } = {}) {
     return i >= 0 && i < weeks.length ? i : -1;
   }
 
-  canvas.addEventListener("mousemove", (e) => {
+  function onMove(e) {
     const r = canvas.getBoundingClientRect();
     const i = indexAt(e.clientX - r.left);
     if (i !== hover) { hover = i; redraw(); }
     canvas.style.cursor = i >= 0 ? "pointer" : "default";
-  });
-  canvas.addEventListener("mouseleave", () => { hover = -1; redraw(); });
-  canvas.addEventListener("click", (e) => {
+  }
+  function onLeave() { hover = -1; redraw(); }
+  function onClick(e) {
     const r = canvas.getBoundingClientRect();
     const i = indexAt(e.clientX - r.left);
     if (i >= 0 && onSelect) onSelect(i);
-  });
+  }
+  canvas.addEventListener("mousemove", onMove);
+  canvas.addEventListener("mouseleave", onLeave);
+  canvas.addEventListener("click", onClick);
 
   function redraw() {
     const r = plot.getBoundingClientRect();
     draw(r.width, r.height);
   }
-  new ResizeObserver(() => redraw()).observe(plot);
+  const observer = new ResizeObserver(() => redraw());
+  observer.observe(plot);
 
   return {
     render(nextWeeks) { weeks = nextWeeks; hover = -1; redraw(); },
     redraw,
+    destroy() {
+      observer.disconnect();
+      canvas.removeEventListener("mousemove", onMove);
+      canvas.removeEventListener("mouseleave", onLeave);
+      canvas.removeEventListener("click", onClick);
+    },
   };
 }

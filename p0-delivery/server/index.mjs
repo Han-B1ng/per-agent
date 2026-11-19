@@ -16,7 +16,7 @@ const MIME = {
   ".svg": "image/svg+xml", ".webm": "video/webm", ".ico": "image/x-icon", ".woff2": "font/woff2",
 };
 
-export function createApp({ env = {}, staticRoot = path.join(REPO, "web"), legacyRoot = path.join(REPO, "legacy") } = {}) {
+export function createApp({ env = {}, staticRoot = path.join(REPO, "dist"), legacyRoot = path.join(REPO, "legacy") } = {}) {
   const hasKey = Boolean(env.MODEL_API_KEY);
   const rate = new Map(); // ip -> {count, reset}
   const cache = new Map(); // key -> {at, payload}
