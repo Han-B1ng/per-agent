@@ -107,3 +107,39 @@ test("PR#3 P2：确认冲突时整批回滚，新增记录也不得部分入账"
   assert.equal(JSON.stringify(r), before);
   assert.equal(r.events.some((e) => e.quote === "不应写入的新事件"), false);
 });
+
+for (const c of [
+  {
+    name: "事件",
+    collection: "events",
+    add: { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: TODAY, quote: "先确认的事件", confidence: 0.4 } },
+    confirmOp: "confirm_event",
+    denyOp: "deny_event",
+    addition: { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: TODAY, quote: "合法新增但不得落盘", confidence: 0.9 } },
+  },
+  {
+    name: "休息",
+    collection: "rests",
+    add: { op: "add_rest", rest: { date: TODAY, quote: "先确认的休息", confidence: 0.4 } },
+    confirmOp: "confirm_rest",
+    denyOp: "deny_rest",
+    addition: { op: "add_rest", rest: { date: TODAY, quote: "合法新增但不得落盘", confidence: 0.9 } },
+  },
+]) {
+  test(`PR#3 旧否认整批回滚：${c.name}已确认后 deny + 合法新增`, () => {
+    const r = emptyPersonal();
+    applyItems(r, [c.add], { today: TODAY, now: NOW, createId });
+    const id = r[c.collection][0].id;
+    applyItems(r, [{ op: c.confirmOp, id }], { today: TODAY, now: NOW, createId });
+    const scoreBefore = computeAll(r, { today: TODAY });
+    const auditBefore = r.audit.length;
+    const result = applyItems(r, [{ op: c.denyOp, id }, c.addition], { today: TODAY, now: NOW, createId });
+    assert.equal(result.applied, false);
+    assert.equal(result.changed, 0);
+    assert.equal(r[c.collection][0].status, "confirmed");
+    assert.equal(r[c.collection][0].deletedAt, null);
+    assert.deepEqual(computeAll(r, { today: TODAY }), scoreBefore);
+    assert.equal(r[c.collection].some((rec) => rec.quote === "合法新增但不得落盘"), false);
+    assert.equal(r.audit.length, auditBefore);
+  });
+}
