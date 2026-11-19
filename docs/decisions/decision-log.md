@@ -1,6 +1,6 @@
 # 决策记录
 
-> 规则：已定的不反复讨论；待定的必须有 owner 和截止日。改动设计请同步 `docs/design/design-draft-v0.1.md`。
+> 规则：已定的不反复讨论；待定的必须有 owner 和截止日。改动规则请同步[算法规格](../design/agent-engine-spec-v0.1.md)，改动工作台请同步[工作台设计稿](../design/product-workspace-v0.2-proposal.md)。
 
 ## 已确认
 

@@ -9,7 +9,6 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": { target: "http://127.0.0.1:8123", changeOrigin: true },
-      "/legacy": { target: "http://127.0.0.1:8123", changeOrigin: true },
     },
   },
   build: {
