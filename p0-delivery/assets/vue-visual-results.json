@@ -1,0 +1,97 @@
+[
+  {
+    "name": "视觉[1440x900] 空闲首屏与高DPR画布",
+    "pass": true,
+    "detail": "{\"ratio\":2,\"width\":2164,\"css\":1082,\"weeks\":\"样例人生 · 虚构演示\"}"
+  },
+  {
+    "name": "视觉[1440x900] 首次聚焦图表不动",
+    "pass": true,
+    "detail": "{\"x\":190,\"y\":64,\"w\":1120,\"h\":523.59375,\"mode\":\"market\"}"
+  },
+  {
+    "name": "视觉[1440x900] 短消息后最新回复可读",
+    "pass": true,
+    "detail": "2"
+  },
+  {
+    "name": "视觉[1440x900] 实际溢出进入专注且输入框不跳动",
+    "pass": true,
+    "detail": "{\"mode\":\"focus\",\"scrollable\":true,\"composerBottom\":862,\"vh\":900,\"transform\":\"matrix(1.24, 0, 0, 1.24, 0, 0)\",\"opacity\":\"0.13\"}"
+  },
+  {
+    "name": "视觉[1440x900] 返回行情保留消息",
+    "pass": true,
+    "detail": "market"
+  },
+  {
+    "name": "视觉[1440x900] 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "视觉[1440x720] 空闲首屏与高DPR画布",
+    "pass": true,
+    "detail": "{\"ratio\":1,\"width\":1082,\"css\":1082,\"weeks\":\"样例人生 · 虚构演示\"}"
+  },
+  {
+    "name": "视觉[1440x720] 首次聚焦图表不动",
+    "pass": true,
+    "detail": "{\"x\":190,\"y\":64,\"w\":1120,\"h\":425.78125,\"mode\":\"market\"}"
+  },
+  {
+    "name": "视觉[1440x720] 短消息后最新回复可读",
+    "pass": true,
+    "detail": "2"
+  },
+  {
+    "name": "视觉[1440x720] 实际溢出进入专注且输入框不跳动",
+    "pass": true,
+    "detail": "{\"mode\":\"focus\",\"scrollable\":true,\"composerBottom\":685.609375,\"vh\":720,\"transform\":\"matrix(1.24, 0, 0, 1.24, 0, 0)\",\"opacity\":\"0.13\"}"
+  },
+  {
+    "name": "视觉[1440x720] 返回行情保留消息",
+    "pass": true,
+    "detail": "market"
+  },
+  {
+    "name": "视觉[1440x720] 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "视觉[390x844] 空闲首屏与高DPR画布",
+    "pass": true,
+    "detail": "{\"ratio\":2,\"width\":680,\"css\":340,\"weeks\":\"样例人生 · 虚构演示\"}"
+  },
+  {
+    "name": "视觉[390x844] 首次聚焦图表不动",
+    "pass": true,
+    "detail": "{\"x\":14,\"y\":58,\"w\":362,\"h\":479.8125,\"mode\":\"market\"}"
+  },
+  {
+    "name": "视觉[390x844] 短消息后最新回复可读",
+    "pass": true,
+    "detail": "2"
+  },
+  {
+    "name": "视觉[390x844] 实际溢出进入专注且输入框不跳动",
+    "pass": true,
+    "detail": "{\"mode\":\"focus\",\"scrollable\":true,\"composerBottom\":808.125,\"vh\":844,\"transform\":\"matrix(1.24, 0, 0, 1.24, 0, 0)\",\"opacity\":\"0.13\"}"
+  },
+  {
+    "name": "视觉[390x844] 返回行情保留消息",
+    "pass": true,
+    "detail": "market"
+  },
+  {
+    "name": "视觉[390x844] 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "视觉 单根周K提示",
+    "pass": true,
+    "detail": "{\"note\":\"目前只有本周记录\",\"weeks\":1}"
+  }
+]
