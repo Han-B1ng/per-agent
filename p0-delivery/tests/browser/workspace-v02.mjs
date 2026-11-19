@@ -373,6 +373,60 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   await context.close();
 }
 
+/* PR#4：周复盘挂载到成长记录「本周」，跳转真实目标与周 K 明细 */
+{
+  const d = new Date();
+  const t = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const seed = JSON.stringify({
+    events: [{ id: "wr_event", kind: "event", eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: t, quote: "本周跑步", tags: [], confidence: 0.9, status: "confirmed", createdAt: `${t}T08:00:00.000Z`, deletedAt: null }],
+    rests: [],
+    tasks: [
+      { id: "wr_done", kind: "task", title: "本周完成的目标", dueAt: shiftDate(t, 1), position: 3, status: "done", createdAt: `${shiftDate(t, -2)}T08:00:00.000Z`, doneAt: `${t}T09:00:00.000Z`, deletedAt: null },
+      { id: "wr_overdue", kind: "task", title: "逾期目标", dueAt: shiftDate(t, -3), position: 2, status: "open", createdAt: `${shiftDate(t, -6)}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+      { id: "wr_paused", kind: "task", title: "暂停目标", dueAt: shiftDate(t, 5), position: 1, status: "paused", createdAt: `${shiftDate(t, -1)}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+    ],
+    chat: [],
+  });
+  const { context, page } = await newPage({ seed });
+  await page.click("#view-personal");
+  await go(page, "records");
+  await page.click("#records-tab-week");
+  await page.waitForTimeout(300);
+  const reviewState = await page.evaluate(() => ({
+    present: Boolean(document.querySelector('[data-testid="weekly-review"]')),
+    weekKey: document.querySelector('[data-testid="weekly-review"]')?.dataset.weekKey,
+    completed: [...document.querySelectorAll('[data-testid="completed-row"]')].map((n) => n.dataset.taskId),
+    ongoing: [...document.querySelectorAll('[data-testid="ongoing-row"]')].map((n) => n.dataset.taskId),
+  }));
+  check("PR#4 本周复盘显示真实完成与进行目标", reviewState.present && reviewState.completed.join() === "wr_done" && reviewState.ongoing.includes("wr_overdue") && reviewState.ongoing.includes("wr_paused"), JSON.stringify(reviewState));
+  await page.locator('[data-testid="completed-row"]').click();
+  await page.waitForTimeout(300);
+  check("PR#4 完成项跳转真实目标抽屉", (await page.locator("#drawer-title").textContent()) === "目标详情" && (await page.locator("#drawer-sub").textContent()) === "wr_done", await page.locator("#drawer-sub").textContent());
+  await page.click("#drawer-close");
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid="contribution-completion"]').first().click();
+  await page.waitForTimeout(300);
+  const weekSub = await page.locator("#drawer-sub").textContent();
+  check("PR#4 贡献项跳转周 K 明细", weekSub.includes(reviewState.weekKey), weekSub);
+  await page.click("#drawer-close");
+  await page.waitForTimeout(500);
+  await page.locator('[data-testid="week-open"]').click();
+  await page.waitForTimeout(300);
+  check("PR#4 指数卡跳转周 K 明细", (await page.locator("#drawer-sub").textContent()).includes(reviewState.weekKey), await page.locator("#drawer-sub").textContent());
+  await page.click("#drawer-close");
+  await page.waitForTimeout(500);
+  const firstWeek = await page.evaluate(() => document.querySelector("#review-week-select option:nth-child(2)").value);
+  await page.selectOption("#review-week-select", firstWeek);
+  await page.waitForTimeout(300);
+  check("PR#4 跨周切换复盘重算", (await page.evaluate(() => document.querySelector('[data-testid="weekly-review"]').dataset.weekKey)) === firstWeek, firstWeek);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+  const overflowX = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
+  check("PR#4 手机窄屏复盘无横向溢出", overflowX, await page.evaluate(() => `${document.documentElement.scrollWidth}/${innerWidth}`));
+  check("PR#4 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
 await browser.close();
 app.close();
 writeFileSync(path.join(ROOT, "assets/v02-acceptance-results.json"), JSON.stringify(results, null, 2));
