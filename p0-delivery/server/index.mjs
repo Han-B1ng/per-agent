@@ -16,7 +16,7 @@ const MIME = {
   ".svg": "image/svg+xml", ".webm": "video/webm", ".ico": "image/x-icon", ".woff2": "font/woff2",
 };
 
-export function createApp({ env = {}, staticRoot = path.join(REPO, "dist"), legacyRoot = path.join(REPO, "legacy") } = {}) {
+export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {}) {
   const hasKey = Boolean(env.MODEL_API_KEY);
   const rate = new Map(); // ip -> {count, reset}
   const cache = new Map(); // key -> {at, payload}
@@ -103,8 +103,6 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist"), lega
       }
       if (url.pathname === "/api/extract" && req.method === "POST") return await handleExtract(req, res, ip);
       if (req.method !== "GET" && req.method !== "HEAD") { res.writeHead(405); res.end(); return; }
-      if (url.pathname.startsWith("/legacy/")) return await serveStatic(res, legacyRoot, url.pathname.slice("/legacy".length) || "/");
-      if (url.pathname === "/legacy") return await serveStatic(res, legacyRoot, "/");
       return await serveStatic(res, staticRoot, url.pathname);
     } catch (err) {
       console.error("[server]", err.message);
@@ -122,6 +120,6 @@ if (isMain) {
   const host = env.HOST || "127.0.0.1";
   const server = createApp({ env });
   server.listen(port, host, () => {
-    console.log(`Personal Economy P0 · http://${host}:${port} · 抽取模式: ${env.MODEL_API_KEY ? "model(" + (env.MODEL_NAME || "gpt-4o-mini") + ")" : "mock(本地)"} · 旧原型 /legacy/`);
+    console.log(`Personal Economy P0 · http://${host}:${port} · 抽取模式: ${env.MODEL_API_KEY ? "model(" + (env.MODEL_NAME || "gpt-4o-mini") + ")" : "mock(本地)"}`);
   });
 }
