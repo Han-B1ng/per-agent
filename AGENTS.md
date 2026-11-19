@@ -1,6 +1,6 @@
 # AGENTS.md
 
-本仓库是「个人成长指数」（Personal Economy）的代码与验证证据仓库。开工先读本文件、当前 README，以及相关 Linear 任务；不要把 Linear 规范全文复制进仓库。
+本仓库是「个人成长指数」（Personal Economy）的代码仓库。开工先读本文件、README 的队友对接说明，以及相关 Linear 任务；不要把 Linear 规范全文复制进仓库。
 
 ## 适用规范
 

@@ -1,7 +1,7 @@
 # Agent 逻辑与计算算法规格 v0.1
 
 > 状态：8 个开放项已全部敲定（D18–D36）；返工轮新增 D39（完成逾期任务历史保留 / 完成当日只计增益，口径 A 定稿）与 pending 隔离口径（D29 细化）。权重校准等剩余项见 §9。本文件由 agent 逻辑专项会话产出。
-> 上游事实来源：`docs/design/design-draft-v0.1.md`（注意顶部撤回声明）、`docs/decisions/decision-log.md`。
+> 上游依据见[决策记录](../decisions/decision-log.md)。下文引用旧设计稿的章节时，可查[整理前的设计稿](https://github.com/Han-B1ng/per-agent/blob/3948e1027068cea38ca25c851de9f35b4ea0e3a4/docs/design/design-draft-v0.1.md)。
 > 每条结论标注「用户已定」或「待定」。五板块占位已撤回，本文件不沿用。
 > 本规格不写实现代码，只定口径。
 
