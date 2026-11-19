@@ -60,6 +60,7 @@ function applyItemsDraft(records, items, { today, now = new Date().toISOString()
         if (it.occurredAt) e.occurredAt = it.occurredAt;
         if (typeof it.quote === "string" && it.quote.trim()) e.quote = it.quote.trim();
       } else {
+        if (it.op === "deny_event" && e.status !== "pending") { errors.push("事件已处理，不能否认，请按最新账本重试"); continue; }
         e.deletedAt = now;
       }
       commit(it.op, e, before, snapshot(e));
@@ -76,6 +77,7 @@ function applyItemsDraft(records, items, { today, now = new Date().toISOString()
         if (it.date) r.date = it.date;
         if (typeof it.quote === "string" && it.quote.trim()) r.quote = it.quote.trim();
       } else {
+        if (it.op === "deny_rest" && r.status !== "pending") { errors.push("休息已处理，不能否认，请按最新账本重试"); continue; }
         r.deletedAt = now;
       }
       commit(it.op, r, before, snapshot(r));
