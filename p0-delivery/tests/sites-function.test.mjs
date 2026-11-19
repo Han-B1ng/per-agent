@@ -24,6 +24,8 @@ function stubFetch(routes) {
 }
 const qcaRoutes = {
   "GET /api/v1/cloud/models": { data: [{ id: "m1", enabled: true }] },
+  "GET /api/v1/cloud/agents": { data: [] },
+  "GET /api/v1/cloud/environments": { data: [] },
   "POST /api/v1/cloud/agents": { id: "agent1" },
   "POST /api/v1/cloud/environments": { id: "env1" },
   "POST /api/v1/cloud/sessions": { id: "sess1" },
@@ -104,6 +106,31 @@ test("function cache：按访客和完整有效上下文隔离", async () => {
   assert.equal(same.cached, true);
   assert.equal(otherVisitor.cached, undefined);
   assert.equal(otherTasks.cached, undefined);
+});
+
+test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环境", async () => {
+  const calls = [];
+  const fetchImpl = async (url, opts = {}) => {
+    const u = new URL(url);
+    const key = `${opts.method || "GET"} ${u.pathname}`;
+    calls.push(key);
+    const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { "Content-Type": "application/json" } });
+    if (key === "GET /api/v1/cloud/models") return json({ data: [{ id: "m1", enabled: true }] });
+    if (key === "POST /api/v1/cloud/agents") return json({ error: "conflict" }, 409);
+    if (key === "GET /api/v1/cloud/agents") return json({ data: [{ id: "agent-old", name: "personal-economy-extractor", metadata: { app: "personal-economy" } }] });
+    if (key === "GET /api/v1/cloud/environments") return json({ data: [{ id: "env-old", config: { type: "cloud" }, metadata: { app: "personal-economy" } }] });
+    if (key === "POST /api/v1/cloud/sessions") return json({ id: "sess1" });
+    if (key === "POST /api/v1/cloud/sessions/sess1/events") return json({ id: "ev1" });
+    if (key === "GET /api/v1/cloud/sessions/sess1/events") return json({ data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(qcaPayload) }] }] });
+    return json({ error: "unexpected " + key }, 500);
+  };
+  const h = createHandler({ getToken: () => "fixture", fetchImpl, logger: { info() {} } });
+  const r = await h(post({ text: "今天跑了五公里", context: { today: TODAY } }));
+  const j = await r.json();
+  assert.equal(j.ok, true);
+  assert.equal(j.mode, "model");
+  assert.ok(calls.includes("GET /api/v1/cloud/agents"));
+  assert.ok(!calls.includes("POST /api/v1/cloud/environments"));
 });
 
 test("function extract：单访客限流明确返回 rate_limited", async () => {
