@@ -41,6 +41,13 @@ for (const [width, height, scale] of [[1440, 900, 2], [1440, 720, 1], [390, 844,
   const tag = `${width}x${height}`;
   const { context, page } = await newPage({ width, height, scale, video: path.join(ROOT, `assets/videos/vue-market-${tag}`) });
   await shot(page, `vue-market-${tag}-idle`);
+  const header = await page.evaluate(() => {
+    const bar = document.querySelector(".topbar").getBoundingClientRect();
+    const title = document.querySelector("#page-title").getBoundingClientRect();
+    return { barTop: bar.top, barBottom: bar.bottom, titleTop: title.top, titleBottom: title.bottom, font: getComputedStyle(document.querySelector("#page-title")).fontSize };
+  });
+  check(`视觉[${tag}] 页头标题完整不裁切`, header.titleTop >= header.barTop && header.titleBottom <= header.barBottom && header.titleTop >= 0 && header.font === "15px", JSON.stringify(header));
+  await page.locator(".topbar").screenshot({ path: path.join(ROOT, `assets/screenshots/vue-header-${tag}.png`) });
   const dpr = await page.evaluate(() => { const c = document.querySelector("#candles"); const r = c.getBoundingClientRect(); return { ratio: window.devicePixelRatio, width: c.width, css: Math.round(r.width), weeks: document.querySelector("#data-tag").textContent }; });
   check(`视觉[${tag}] 空闲首屏与高DPR画布`, dpr.width >= dpr.css * dpr.ratio - 2, JSON.stringify(dpr));
   const before = await page.evaluate(() => { const r = document.querySelector(".market").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });

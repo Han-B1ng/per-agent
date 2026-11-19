@@ -67,7 +67,7 @@
   {
     "name": "C 记录页补日期后只生效一次",
     "pass": true,
-    "detail": "行为前阵子跑过五公里evt_mwnmi0t1_3+1.00%生效值详情周 K"
+    "detail": "行为前阵子跑过五公里evt_mwnndra4_3+1.00%生效值详情周 K"
   },
   {
     "name": "C 聊天确认卡同步消失",
@@ -77,12 +77,12 @@
   {
     "name": "D 情绪记录可筛选且贡献为零",
     "pass": true,
-    "detail": "情绪今天有点焦虑evt_mwnmi272_8情绪记录 · 不计分0.00%生效值详情周 K"
+    "detail": "情绪今天有点焦虑evt_mwnndsnm_8情绪记录 · 不计分0.00%生效值详情周 K"
   },
   {
     "name": "D 跑步日期可按生效日修正并留轨迹",
     "pass": true,
-    "detail": "evt_mwnmi272_a"
+    "detail": "evt_mwnndsnm_a"
   },
   {
     "name": "D 目标周明细对应原文和 +1%",
@@ -237,7 +237,7 @@
   {
     "name": "PR#3 P2 冲突批次原子回滚且界面提示重试",
     "pass": true,
-    "detail": "{\"stored\":{\"version\":2,\"events\":[{\"id\":\"conflict_pending\",\"kind\":\"event\",\"eventType\":\"behavior\",\"polarity\":\"positive\",\"intensity\":3,\"occurredAt\":\"2026-11-19\",\"quote\":\"待确认旧事件\",\"tags\":[],\"confidence\":0.4,\"status\":\"pending\",\"createdAt\":\"2026-11-19T08:00:00.000Z\",\"deletedAt\":\"2026-11-19T14:06:36.601Z\"}],\"rests\":[],\"tasks\":[],\"chat\":[{\"id\":\"conflict_msg\",\"role\":\"assistant\",\"text\":\"确认这条吗\",\"pending\":[\"conflict_pending\"]},{\"id\":\"msg_mwnmisrg_1\",\"role\":\"user\",\"text\":\"确认并新增\"},{\"id\":\"msg_mwnmitl5_6\",\"role\""
+    "detail": "{\"stored\":{\"version\":2,\"events\":[{\"id\":\"conflict_pending\",\"kind\":\"event\",\"eventType\":\"behavior\",\"polarity\":\"positive\",\"intensity\":3,\"occurredAt\":\"2026-11-19\",\"quote\":\"待确认旧事件\",\"tags\":[],\"confidence\":0.4,\"status\":\"pending\",\"createdAt\":\"2026-11-19T08:00:00.000Z\",\"deletedAt\":\"2026-11-19T14:31:18.630Z\"}],\"rests\":[],\"tasks\":[],\"chat\":[{\"id\":\"conflict_msg\",\"role\":\"assistant\",\"text\":\"确认这条吗\",\"pending\":[\"conflict_pending\"]},{\"id\":\"msg_mwnnekbu_1\",\"role\":\"user\",\"text\":\"确认并新增\"},{\"id\":\"msg_mwnnel4l_6\",\"role\""
   },
   {
     "name": "PR#3 P2 控制台无错误",

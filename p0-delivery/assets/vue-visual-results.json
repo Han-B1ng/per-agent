@@ -1,5 +1,10 @@
 [
   {
+    "name": "视觉[1440x900] 页头标题完整不裁切",
+    "pass": true,
+    "detail": "{\"barTop\":0,\"barBottom\":64,\"titleTop\":22.5,\"titleBottom\":40.5,\"font\":\"15px\"}"
+  },
+  {
     "name": "视觉[1440x900] 空闲首屏与高DPR画布",
     "pass": true,
     "detail": "{\"ratio\":2,\"width\":2164,\"css\":1082,\"weeks\":\"样例人生 · 虚构演示\"}"
@@ -30,6 +35,11 @@
     "detail": "clean"
   },
   {
+    "name": "视觉[1440x720] 页头标题完整不裁切",
+    "pass": true,
+    "detail": "{\"barTop\":0,\"barBottom\":64,\"titleTop\":22.5,\"titleBottom\":40.5,\"font\":\"15px\"}"
+  },
+  {
     "name": "视觉[1440x720] 空闲首屏与高DPR画布",
     "pass": true,
     "detail": "{\"ratio\":1,\"width\":1082,\"css\":1082,\"weeks\":\"样例人生 · 虚构演示\"}"
@@ -58,6 +68,11 @@
     "name": "视觉[1440x720] 控制台无错误",
     "pass": true,
     "detail": "clean"
+  },
+  {
+    "name": "视觉[390x844] 页头标题完整不裁切",
+    "pass": true,
+    "detail": "{\"barTop\":0,\"barBottom\":58,\"titleTop\":19.5,\"titleBottom\":37.5,\"font\":\"15px\"}"
   },
   {
     "name": "视觉[390x844] 空闲首屏与高DPR画布",
