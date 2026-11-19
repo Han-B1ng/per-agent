@@ -22,7 +22,7 @@
 ```bash
 cd p0-delivery
 npm start        # http://localhost:8123
-npm test         # 46 项引擎 / 账本 / API / Sites Function 单测
+npm test         # 47 项引擎 / 账本 / API / Sites Function 单测
 npm run test:browser   # 52 项 P0 浏览器回归 + 录屏
 npm run test:v02       # v0.2 三入口验收 + 桌面/手机录屏
 ```

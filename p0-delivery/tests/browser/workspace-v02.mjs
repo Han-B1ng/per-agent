@@ -20,11 +20,12 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
 const send = async (page, text, wait = 800) => { await page.fill("#entry", text); await page.press("#entry", "Enter"); await page.waitForTimeout(wait); };
 const shot = (page, name) => page.screenshot({ path: path.join(ROOT, `assets/screenshots/${name}.png`) });
 
-async function newPage({ width = 1440, height = 900, seed = null, video = null } = {}) {
+async function newPage({ width = 1440, height = 900, seed = null, video = null, init = null } = {}) {
   const opts = { viewport: { width, height } };
   if (video) { mkdirSync(video, { recursive: true }); opts.recordVideo = { dir: video, size: { width, height } }; }
   const context = await browser.newContext(opts);
   if (seed) await context.addInitScript((s) => localStorage.setItem("pe.personal.v1", s), seed);
+  if (init) await context.addInitScript(init);
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -282,6 +283,96 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   check("F[mobile] 可发消息且输入框留视口底部", bottom && (await quote(page)) > 1000, `quote=${await quote(page)} bottom=${bottom}`);
   check("F[mobile] 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
   await closeVideo(context, page, path.join(ROOT, "assets/videos/v02-mobile-390x844.webm"));
+}
+
+/* PR#3 P1：清空后在途旧响应不得恢复账本、对话或存储 */
+{
+  const { context, page } = await newPage();
+  const day = await today(page);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/extract", async (route) => {
+    await gate;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, mode: "model", reply: "旧响应不应成功", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: day, quote: "清空后不得写回", confidence: 0.9 } }] }) });
+  });
+  await page.fill("#entry", "今天跑了五公里");
+  await page.press("#entry", "Enter");
+  await page.waitForTimeout(100);
+  await page.click("#settings-open");
+  await page.locator("#drawer-body button", { hasText: "清空我的记录" }).click();
+  await page.locator("#drawer-body button", { hasText: "确定清空" }).click();
+  release();
+  await page.waitForTimeout(700);
+  const cleared = await page.evaluate(() => ({ stored: JSON.parse(localStorage.getItem("pe.personal.v2")), messages: document.querySelectorAll(".messages .message").length, quote: document.querySelector("#quote-value").textContent }));
+  check("PR#3 P1 清空作废在途响应，旧响应不写回", cleared.stored.events.length === 0 && cleared.stored.rests.length === 0 && cleared.stored.tasks.length === 0 && cleared.stored.chat.length === 0 && cleared.messages === 0 && cleared.quote === "1,000.0", JSON.stringify(cleared));
+  check("PR#3 P1 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
+/* PR#3 P2：等待中否认后，确认+新增混合批次整批拒绝并提示重试 */
+{
+  const day = new Date().toISOString().slice(0, 10);
+  const seed = JSON.stringify({ events: [{ id: "conflict_pending", kind: "event", eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: day, quote: "待确认旧事件", tags: [], confidence: 0.4, status: "pending", createdAt: `${day}T08:00:00.000Z`, deletedAt: null }], rests: [], tasks: [], chat: [{ id: "conflict_msg", role: "assistant", text: "确认这条吗", pending: ["conflict_pending"] }] });
+  const { context, page } = await newPage({ seed });
+  await page.click("#view-personal");
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/extract", async (route) => {
+    await gate;
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, mode: "model", reply: "模型全部成功", items: [{ op: "confirm_event", id: "conflict_pending" }, { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: day, quote: "不应部分入账", confidence: 0.9 } }] }) });
+  });
+  await page.fill("#entry", "确认并新增");
+  await page.press("#entry", "Enter");
+  await page.waitForTimeout(100);
+  await page.locator(".msg-card .card-btn.ghost").click();
+  release();
+  await page.waitForTimeout(700);
+  const conflict = await page.evaluate(() => ({ stored: JSON.parse(localStorage.getItem("pe.personal.v2")), chat: document.querySelector(".messages").textContent }));
+  check("PR#3 P2 冲突批次原子回滚且界面提示重试", conflict.stored.events.length === 1 && conflict.stored.events[0].deletedAt && !conflict.stored.events.some((e) => e.quote === "不应部分入账") && conflict.chat.includes("整批未写入") && !conflict.chat.includes("模型全部成功") && conflict.chat.includes("重试"), JSON.stringify(conflict));
+  check("PR#3 P2 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
+/* PR#3 P2：跨午夜后请求、手动完成和走势重算使用新本地日期 */
+{
+  const init = () => {
+    const NativeDate = Date;
+    let current = new NativeDate(2026, 10, 19, 23, 59, 30).getTime();
+    class MockDate extends NativeDate {
+      constructor(...args) { super(...(args.length ? args : [current])); }
+      static now() { return current; }
+    }
+    window.Date = MockDate;
+    window.__crossMidnight = () => {
+      current = new NativeDate(2026, 10, 20, 0, 1, 0).getTime();
+      document.dispatchEvent(new Event("visibilitychange"));
+    };
+  };
+  const { context, page } = await newPage({ init });
+  const requestDates = [];
+  page.on("request", (request) => {
+    if (!request.url().includes("/api/extract")) return;
+    const body = request.postDataJSON();
+    requestDates.push(body.context.today);
+  });
+  await page.click("#view-personal");
+  await send(page, "今天跑了五公里");
+  await page.evaluate(() => window.__crossMidnight());
+  await page.waitForTimeout(350);
+  await go(page, "goals");
+  await createGoal(page, "跨日目标", 7);
+  await page.locator("#active-goals .goal-card button", { hasText: "完成" }).click();
+  await send(page, "今天跑了五公里");
+  const crossed = await page.evaluate(() => JSON.parse(localStorage.getItem("pe.personal.v2")));
+  await go(page, "market");
+  if (await page.locator("#view-toggle").isVisible()) { await page.click("#view-toggle"); await page.waitForTimeout(900); }
+  const canvas = await page.locator("#candles").boundingBox();
+  await page.mouse.click(canvas.x + canvas.width - 60, canvas.y + canvas.height / 2);
+  await page.waitForTimeout(300);
+  const lastDay = await page.locator(".day-block .d").last().textContent();
+  check("PR#3 P2 跨午夜后发送/完成/重算均用新日期", requestDates.join(",") === "2026-11-19,2026-11-20" && crossed.events.map((e) => e.occurredAt).join(",") === "2026-11-19,2026-11-20" && crossed.tasks[0].doneAt.startsWith("2026-11-20") && lastDay === "2026-11-20", JSON.stringify({ requestDates, eventDates: crossed.events.map((e) => e.occurredAt), doneAt: crossed.tasks[0].doneAt, lastDay }));
+  check("PR#3 P2 跨日控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
 }
 
 await browser.close();
