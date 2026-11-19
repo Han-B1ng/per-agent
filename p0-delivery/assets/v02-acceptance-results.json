@@ -1,0 +1,257 @@
+[
+  {
+    "name": "视觉/A 目标中心未完成与已完成同屏",
+    "pass": true,
+    "detail": "[{\"open\":true,\"visible\":true},{\"open\":true,\"visible\":true}]"
+  },
+  {
+    "name": "视觉/A 样例含进行中逾期与已完成",
+    "pass": true,
+    "detail": "cards=4"
+  },
+  {
+    "name": "视觉/A 成长记录含行为情绪休息任务完成",
+    "pass": true,
+    "detail": "rows=62"
+  },
+  {
+    "name": "视觉/A 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "A 创建两个目标",
+    "pass": true,
+    "detail": "2"
+  },
+  {
+    "name": "A 双击完成后未完成/已完成各一组",
+    "pass": true,
+    "detail": "1/1"
+  },
+  {
+    "name": "A 成长记录只有一笔完成事实",
+    "pass": true,
+    "detail": "1"
+  },
+  {
+    "name": "A 周 K 只有一笔完成增益",
+    "pass": true,
+    "detail": "1006"
+  },
+  {
+    "name": "A 刷新后目标详情可定位唯一关联记录",
+    "pass": true,
+    "detail": "关联目标：完成论文第三章×"
+  },
+  {
+    "name": "A 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "B D39 历史收盘/逾期明细保留",
+    "pass": true,
+    "detail": "2026-11-18收 996.0原始 -0.40%→涨跌停 0.00%→实际 -0.40%逾期损耗逾期目标-0.40% => 2026-11-18收 996.0原始 -0.40%→涨跌停 0.00%→实际 -0.40%逾期损耗逾期目标-0.40%"
+  },
+  {
+    "name": "B 完成日只有一笔完成增益",
+    "pass": true,
+    "detail": "2026-11-19收 1,002.0原始 +0.60%→涨跌停 0.00%→实际 +0.60%完成任务逾期目标+0.60%记录"
+  },
+  {
+    "name": "C 旧日期 pending 不计分且记录可处理",
+    "pass": true,
+    "detail": "1000"
+  },
+  {
+    "name": "C 记录页补日期后只生效一次",
+    "pass": true,
+    "detail": "行为前阵子跑过五公里evt_mwni4nyr_3+1.00%生效值详情周 K"
+  },
+  {
+    "name": "C 聊天确认卡同步消失",
+    "pass": true,
+    "detail": "1006"
+  },
+  {
+    "name": "D 情绪记录可筛选且贡献为零",
+    "pass": true,
+    "detail": "情绪今天有点焦虑evt_mwni4pbt_8情绪记录 · 不计分0.00%生效值详情周 K"
+  },
+  {
+    "name": "D 跑步日期可按生效日修正并留轨迹",
+    "pass": true,
+    "detail": "evt_mwni4pbt_a"
+  },
+  {
+    "name": "D 目标周明细对应原文和 +1%",
+    "pass": true,
+    "detail": "开1,000.0高1,020.0低1,000.0收1,020.0当周事件 2 条 · 收盘 1,020.0（+2.00%）2026-11-12收 1,020.0原始 +2.00%→涨跌停 0.00%→实际 +2.00%行为 · 正向 强度3前阵子跑过五公里+1.00%记录撤销行为 · 正向 强度3但还是去跑了五公里+1.00%记录撤销2026-11-13收 1,020.0原始 0.00%→涨跌停 0.00%→实际 0.00%当日无记录2026-11-14收 1,020.0原始 0.00%→涨跌停 0.00%→实际 0.00%当日无记录2026-11-15收 1,020.0原始 0.00%→涨跌停 0.00%→实际 0.00%当日无记录"
+  },
+  {
+    "name": "D 原周不再保留跑步行为，情绪仍在原周",
+    "pass": true,
+    "detail": "开1,020.0高1,020.0低1,016.9收1,016.9当周事件 1 条 · 收盘 1,016.9（-0.30%）2026-11-16收 1,019.0原始 -0.10%→涨跌停 0.00%→实际 -0.10%沉默衰减连续第 4 个无事件日-0.10%2026-11-17收 1,018.0原始 -0.10%→涨跌停 0.00%→实际 -0.10%沉默衰减连续第 5 个无事件日-0.10%2026-11-18收 1,016.9原始 -0.10%→涨跌停 0.00%→实际 -0.10%沉默衰减连续第 6 个无事件日-0.10%2026-11-19收 1,016.9原始 0.00%→涨跌停 0.00%→实际 0.00%情绪记录今天有点焦虑情绪记录 · 不计分0.00%记录撤销"
+  },
+  {
+    "name": "D 无搜索结果是真实空态",
+    "pass": true,
+    "detail": "没有符合筛选条件的记录。可清除日期、关键词、类型或关联筛选。"
+  },
+  {
+    "name": "C/D 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "C pending 休息确认生效",
+    "pass": true,
+    "detail": "quote=1000.5 cardGone=true"
+  },
+  {
+    "name": "C pending 休息否认退出",
+    "pass": true,
+    "detail": "quote=1000 cardGone=true"
+  },
+  {
+    "name": "E 等待抽取状态真实可见",
+    "pass": true,
+    "detail": "正在等待模型抽取；现有账本与指数保持不变。"
+  },
+  {
+    "name": "E 超时失败不误录入且可重试",
+    "pass": true,
+    "detail": "[\"今天跑了五公里\"]"
+  },
+  {
+    "name": "E 恢复后重试成功且只记一次",
+    "pass": true,
+    "detail": "1020"
+  },
+  {
+    "name": "E 控制台无脚本错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "迁移 v1 行为/pending休息/完成/暂停均可读",
+    "pass": true,
+    "detail": "version=2"
+  },
+  {
+    "name": "迁移记录包含旧行为与 pending 休息",
+    "pass": true,
+    "detail": "3"
+  },
+  {
+    "name": "迁移导出只标记个人范围",
+    "pass": true,
+    "detail": "personal-economy-personal-2026-11-19.json"
+  },
+  {
+    "name": "清空只移除个人新旧账本",
+    "pass": true,
+    "detail": "{\"v1\":null,\"v2\":{\"version\":2,\"events\":[],\"rests\":[],\"tasks\":[],\"chat\":[],\"audit\":[]}}"
+  },
+  {
+    "name": "样例与个人切换/清空隔离",
+    "pass": true,
+    "detail": "62"
+  },
+  {
+    "name": "空账本有真实引导状态",
+    "pass": true,
+    "detail": "账本还没有成长记录。在底部发一句话，或先在目标中心创建目标。"
+  },
+  {
+    "name": "F[1440x900] 侧栏往返后首次聚焦图表不动",
+    "pass": true,
+    "detail": "{\"mode\":\"market\",\"x\":252,\"y\":65,\"w\":1120,\"h\":513,\"transform\":\"none\"}"
+  },
+  {
+    "name": "F[1440x900] 缩窗未按消息条数误触专注",
+    "pass": true,
+    "detail": "{\"mode\":\"market\",\"x\":240,\"y\":65,\"w\":804,\"h\":435,\"transform\":\"none\"}"
+  },
+  {
+    "name": "F[1440x900] 长消息实际溢出才进入专注",
+    "pass": true,
+    "detail": "{\"mode\":\"focus\",\"messages\":825,\"available\":146,\"scrollable\":true,\"composerBottom\":862,\"vh\":900}"
+  },
+  {
+    "name": "F[1440x900] 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "F[1440x720] 侧栏往返后首次聚焦图表不动",
+    "pass": true,
+    "detail": "{\"mode\":\"market\",\"x\":252,\"y\":65,\"w\":1120,\"h\":372.609375,\"transform\":\"none\"}"
+  },
+  {
+    "name": "F[1440x720] 缩窗未按消息条数误触专注",
+    "pass": true,
+    "detail": "{\"mode\":\"market\",\"x\":240,\"y\":65,\"w\":804,\"h\":294.609375,\"transform\":\"none\"}"
+  },
+  {
+    "name": "F[1440x720] 长消息实际溢出才进入专注",
+    "pass": true,
+    "detail": "{\"mode\":\"focus\",\"messages\":825,\"available\":110,\"scrollable\":true,\"composerBottom\":685.609375,\"vh\":720}"
+  },
+  {
+    "name": "F[1440x720] 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "F[mobile] 目标详情可打开",
+    "pass": true,
+    "detail": "目标详情"
+  },
+  {
+    "name": "F[mobile] 记录详情可打开",
+    "pass": true,
+    "detail": "成长记录详情"
+  },
+  {
+    "name": "F[mobile] 可发消息且输入框留视口底部",
+    "pass": true,
+    "detail": "quote=1010 bottom=true"
+  },
+  {
+    "name": "F[mobile] 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "PR#3 P1 清空作废在途响应，旧响应不写回",
+    "pass": true,
+    "detail": "{\"stored\":{\"version\":2,\"events\":[],\"rests\":[],\"tasks\":[],\"chat\":[],\"audit\":[]},\"messages\":0,\"quote\":\"1,000.0\"}"
+  },
+  {
+    "name": "PR#3 P1 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "PR#3 P2 冲突批次原子回滚且界面提示重试",
+    "pass": true,
+    "detail": "{\"stored\":{\"version\":2,\"events\":[{\"id\":\"conflict_pending\",\"kind\":\"event\",\"eventType\":\"behavior\",\"polarity\":\"positive\",\"intensity\":3,\"occurredAt\":\"2026-11-19\",\"quote\":\"待确认旧事件\",\"tags\":[],\"confidence\":0.4,\"status\":\"pending\",\"createdAt\":\"2026-11-19T08:00:00.000Z\",\"deletedAt\":\"2026-11-19T12:04:16.505Z\"}],\"rests\":[],\"tasks\":[],\"chat\":[{\"id\":\"conflict_msg\",\"role\":\"assistant\",\"text\":\"确认这条吗\",\"pending\":[\"conflict_pending\"]},{\"id\":\"msg_mwni5htm_1\",\"role\":\"user\",\"text\":\"确认并新增\"},{\"id\":\"msg_mwni5hxl_6\",\"role\""
+  },
+  {
+    "name": "PR#3 P2 控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  },
+  {
+    "name": "PR#3 P2 跨午夜后发送/完成/重算均用新日期",
+    "pass": true,
+    "detail": "{\"requestDates\":[\"2026-11-19\",\"2026-11-20\"],\"eventDates\":[\"2026-11-19\",\"2026-11-20\"],\"doneAt\":\"2026-11-20\",\"lastDay\":\"2026-11-20\"}"
+  },
+  {
+    "name": "PR#3 P2 跨日控制台无错误",
+    "pass": true,
+    "detail": "clean"
+  }
+]
