@@ -1,11 +1,22 @@
 <script setup lang="ts">
-import { computed, inject, reactive } from "vue";
+import { computed, inject, reactive, ref } from "vue";
 import type { Workspace } from "../composables/useWorkspace";
 import type { TimelineRow } from "../types";
 import { weekStartOf } from "../core";
+import { WeeklyReviewView, deriveWeeklyReview, listReviewWeeks } from "../../../weekly-review/src/index";
 
 const ws = inject<Workspace>("workspace")!;
-const { timeline, filters, editable, recordTaskId, linkedTaskTitle, lastExtract, lastFailed, result, clearFilters, confirmPending, denyPending, openEntity, openWeekForDate, retryFailed } = ws;
+const { records, timeline, filters, editable, recordTaskId, linkedTaskTitle, lastExtract, lastFailed, result, clearFilters, confirmPending, denyPending, openEntity, openWeekForDate, retryFailed } = ws;
+const recordsTab = ref<"list" | "week">("list");
+const reviewWeekStart = ref("");
+const reviewWeeks = computed(() => listReviewWeeks(result.value));
+const review = computed(() => deriveWeeklyReview(records.value, result.value, { weekStart: reviewWeekStart.value || undefined }));
+function openReviewGoal(taskId: string) {
+  openEntity("goal", taskId);
+}
+function openReviewWeek(payload: { weekStart: string; weekEnd: string; lineId?: string; targetId?: string }) {
+  openWeekForDate(payload.weekStart);
+}
 const pendingDates = reactive<Record<string, string>>({});
 const names: Record<TimelineRow["type"], string> = { behavior: "行为", emotion: "情绪", rest: "休息", completion: "任务完成" };
 const statusNames: Record<string, string> = { pending: "待确认", deleted: "已撤销" };
@@ -38,6 +49,18 @@ function fmtContrib(c: number) {
         <p>什么时候发生了什么。原文、生效值与计分明细可互相定位。</p>
       </div>
     </header>
+    <div class="records-tabs" role="tablist" aria-label="成长记录视图">
+      <button id="records-tab-list" role="tab" type="button" :aria-selected="recordsTab === 'list'" @click="recordsTab = 'list'">全部记录</button>
+      <button id="records-tab-week" role="tab" type="button" :aria-selected="recordsTab === 'week'" @click="recordsTab = 'week'">本周</button>
+    </div>
+    <template v-if="recordsTab === 'week'">
+      <WeeklyReviewView :review="review" @open-goal="openReviewGoal" @open-week="openReviewWeek">
+        <template #week-controls>
+          <label class="review-week-picker">周<select id="review-week-select" v-model="reviewWeekStart"><option value="">本周</option><option v-for="week in reviewWeeks" :key="week.weekKey" :value="week.weekStart">{{ week.weekStart }} ~ {{ week.weekEnd }}</option></select></label>
+        </template>
+      </WeeklyReviewView>
+    </template>
+    <template v-else>
     <section class="record-filters" aria-label="记录筛选">
       <label>开始日期<input id="filter-from" v-model="filters.from" type="date"></label>
       <label>结束日期<input id="filter-to" v-model="filters.to" type="date"></label>
@@ -77,5 +100,6 @@ function fmtContrib(c: number) {
         </article>
       </section>
     </div>
+    </template>
   </main>
 </template>

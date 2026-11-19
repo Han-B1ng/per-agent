@@ -29,14 +29,14 @@ function forwardWeek(payload: { weekStart: string; weekEnd: string; lineId?: str
 </script>
 
 <template>
-  <main class="review-page" data-testid="weekly-review" :data-week-key="review.week.weekKey" aria-labelledby="review-title">
+  <section class="review-page" data-testid="weekly-review" :data-week-key="review.week.weekKey" aria-labelledby="review-title">
     <header class="review-heading">
       <div class="review-heading-main">
         <p class="eyebrow">GROWTH RECORDS / WEEKLY</p>
-        <h1 id="review-title">
+        <h2 id="review-title">
           本周复盘
           <span class="view-tag">成长记录 · 本周</span>
-        </h1>
+        </h2>
         <p class="review-sub">
           {{ rangeLabel }} · {{ asOfLabel }}。只读取现有账本与引擎输出，不另存一份复盘数据。
         </p>
@@ -140,7 +140,7 @@ function forwardWeek(payload: { weekStart: string; weekEnd: string; lineId?: str
     <p class="review-footnote">
       本周指数与贡献均来自确定性引擎的周 K 重算；待确认项保留待确认且不计分，完成增益只计一次（D39/D40）。
     </p>
-  </main>
+  </section>
 </template>
 
 <style scoped>
@@ -162,7 +162,7 @@ function forwardWeek(payload: { weekStart: string; weekEnd: string; lineId?: str
   font: 9px ui-monospace, Menlo, monospace;
   letter-spacing: 0.24em;
 }
-.review-heading h1 {
+.review-heading h2 {
   margin: 4px 0 8px;
   color: var(--text);
   font-size: clamp(25px, 3vw, 34px);
@@ -369,7 +369,7 @@ function forwardWeek(payload: { weekStart: string; weekEnd: string; lineId?: str
     display: block;
     margin-bottom: 16px;
   }
-  .review-heading h1 { font-size: 26px; }
+  .review-heading h2 { font-size: 26px; }
   .review-controls { margin-top: 12px; }
   .review-hero-grid { gap: 10px; }
   .goal-row {

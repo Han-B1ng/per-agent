@@ -2,7 +2,7 @@
 
 「成长记录」下的「本周」视图：从现有账本与确定性引擎的周 K 输出派生复盘，展示本周指数变化、本周已完成、仍在进行和逐条贡献。点击目标或贡献项只向宿主抛出稳定 ID，不在组件里跳转。
 
-本目录是独立验收单元。共享入口挂载留给 Vue 迁移 PR 合并后联调；本轮不改公共账本结构、主布局、Sites 后端或根 `package.json`。
+本目录是独立验收单元，同时已挂载到主站「成长记录 → 本周」（见下文接入验收）。不改公共账本结构、Sites 后端或根 `package.json` 的运行时依赖。
 
 ## 快速开始
 
@@ -76,7 +76,7 @@ function onOpenWeek(payload: { weekStart: string; weekEnd: string; lineId?: stri
 - `weekStart`：可选；默认当前周。取值应来自 `review.week.weekStart`（即引擎的 `weekStart`），不要自己重算周边界。
 - 跳转入口：`openEntity` / `openWeekForDate`（迁移 PR 已有）。`open-week` 的 `weekStart` 是稳定周标识；`open-goal` 的 `taskId` 是稳定目标 ID。
 
-接入位置：在迁移后的 `RecordsView.vue` 加「本周」视图切换，把上述 `review` 传给 `WeeklyReviewView`。本轮不修改该入口，等迁移合并后联调。
+接入位置：主站 `frontend/src/components/RecordsView.vue` 的「全部记录 / 本周」切换。`review` 由同一 `records` 与 `result` 派生；`open-goal` 接 `openEntity("goal", taskId)`，`open-week` 接 `openWeekForDate(payload.weekStart)`；周次切换通过 `#week-controls` 插槽提供 `#review-week-select`。组件根节点为 `section`，可直接嵌入宿主 `main`。
 
 ## 数据口径
 
@@ -98,7 +98,19 @@ function onOpenWeek(payload: { weekStart: string; weekEnd: string; lineId?: stri
 | 桌面 1440×900 | 有数据 / 空账本截图见上 |
 | 手机 390×844 | 首屏与列表截图见上；行宽 360px，标题字号 13px |
 
-**独立组件通过与接入主站通过分开记录。** 本 PR 只完成独立目录验收；主站接入需等 Vue 迁移 PR 合并后，在 `RecordsView` 挂载并用同一 `records`/`result` 联调，再记录接入验收结果。
+**独立组件通过与接入主站通过分开记录。**
+
+### 主站接入验收（Vue 迁移合并后）
+
+| 项目 | 结果 |
+| --- | --- |
+| 主站构建 `npm run build` | 通过（vue-tsc + vite，复盘组件随主站打包） |
+| 主站工作区验收 `npm run test:v02` | 58/58 通过，含 7 项接入断言 |
+| 完成项跳转 | 点击「本周已完成」行打开真实目标抽屉（`#drawer-sub` = 任务 ID） |
+| 贡献项 / 指数卡跳转 | 打开对应周 K 明细抽屉（周标识与引擎 `weekStart` 一致） |
+| 跨周切换 | `#review-week-select` 切换后复盘按该周重算 |
+| 手机 390×844 | 无横向溢出，控制台 0 报错 |
+| 接入截图 | `../assets/screenshots/weekly-review-mounted-1440x900.png`、`weekly-review-mounted-390x844.png` |
 
 ## 已知边界
 
