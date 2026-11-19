@@ -7,7 +7,7 @@
   {
     "name": "A[1440x900] 首次点输入框K线不动",
     "pass": true,
-    "detail": "{\"mode\":\"market\",\"transform\":\"none\",\"opacity\":\"1\",\"filter\":\"none\",\"w\":1120,\"h\":513,\"x\":252,\"y\":65}"
+    "detail": "{\"mode\":\"market\",\"transform\":\"none\",\"opacity\":\"1\",\"filter\":\"none\",\"w\":1120,\"h\":523.59375,\"x\":190,\"y\":64}"
   },
   {
     "name": "A[1440x900] 单条消息未溢出仍market",
@@ -42,7 +42,7 @@
   {
     "name": "A[1440x720] 首次点输入框K线不动",
     "pass": true,
-    "detail": "{\"mode\":\"market\",\"transform\":\"none\",\"opacity\":\"1\",\"filter\":\"none\",\"w\":1120,\"h\":372.609375,\"x\":252,\"y\":65}"
+    "detail": "{\"mode\":\"market\",\"transform\":\"none\",\"opacity\":\"1\",\"filter\":\"none\",\"w\":1120,\"h\":425.78125,\"x\":190,\"y\":64}"
   },
   {
     "name": "A[1440x720] 单条消息未溢出仍market",

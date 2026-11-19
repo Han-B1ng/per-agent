@@ -1,21 +1,33 @@
 {
   "name": "personal-economy",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "个人成长指数 P0：对话抽取 → 确定性引擎 → 周K + 计算明细",
+  "description": "个人成长指数：Vue 3 + TypeScript + Vite 前端，确定性引擎与 Qoder Sites 模型代理",
   "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit -p frontend/tsconfig.json && vite build",
+    "preview": "vite preview",
+    "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json",
     "start": "node server/index.mjs",
     "test": "node --test tests/engine.test.mjs tests/ledger.test.mjs tests/api.test.mjs tests/sites-function.test.mjs",
     "test:install": "playwright install chromium ffmpeg",
-    "test:browser": "node tests/browser/acceptance.mjs",
-    "test:v02": "node tests/browser/workspace-v02.mjs",
+    "test:browser": "npm run build && node tests/browser/acceptance.mjs",
+    "test:v02": "npm run build && node tests/browser/workspace-v02.mjs",
+    "test:visual": "npm run build && node tests/browser/vue-market-visual.mjs",
     "test:sample": "node tests/browser/observe-sample.mjs"
   },
   "engines": {
     "node": ">=20"
   },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
   "devDependencies": {
-    "playwright": "1.64.1"
+    "@vitejs/plugin-vue": "^5.2.4",
+    "playwright": "1.64.1",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vue-tsc": "^2.2.10"
   }
 }
