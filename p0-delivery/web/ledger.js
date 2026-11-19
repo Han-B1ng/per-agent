@@ -12,7 +12,7 @@ function snapshot(r) {
   return r ? JSON.parse(JSON.stringify(r)) : null;
 }
 
-export function applyItems(records, items, { today, now = new Date().toISOString(), createId = genId } = {}) {
+function applyItemsDraft(records, items, { today, now = new Date().toISOString(), createId = genId } = {}) {
   const newPending = [];
   const errors = [];
   let changed = 0;
@@ -52,7 +52,7 @@ export function applyItems(records, items, { today, now = new Date().toISOString
       if (!e) { errors.push("事件不存在或已撤销"); continue; }
       const before = snapshot(e);
       if (it.op === "confirm_event") {
-        if (e.status !== "pending") continue;
+        if (e.status !== "pending") { errors.push("事件已处理，请按最新账本重试"); continue; }
         e.status = "confirmed";
         e.confidence = 1;
         if (it.occurredAt) e.occurredAt = it.occurredAt;
@@ -68,7 +68,7 @@ export function applyItems(records, items, { today, now = new Date().toISOString
       if (!r) { errors.push("休息记录不存在或已撤销"); continue; }
       const before = snapshot(r);
       if (it.op === "confirm_rest") {
-        if (r.status !== "pending") continue;
+        if (r.status !== "pending") { errors.push("休息已处理，请按最新账本重试"); continue; }
         r.status = "confirmed";
         r.confidence = 1;
         if (it.date) r.date = it.date;
@@ -99,6 +99,15 @@ export function applyItems(records, items, { today, now = new Date().toISOString
     }
   }
   return { newPending, changed, errors };
+}
+
+export function applyItems(records, items, options = {}) {
+  const draft = snapshot(records);
+  const result = applyItemsDraft(draft, items, options);
+  if (result.errors.length) return { newPending: [], changed: 0, errors: result.errors, applied: false };
+  for (const key of Object.keys(records)) delete records[key];
+  Object.assign(records, draft);
+  return { ...result, applied: true };
 }
 
 export function getGoals(records, today) {

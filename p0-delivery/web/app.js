@@ -24,7 +24,7 @@ function localToday() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
-const TODAY = localToday();
+let TODAY = localToday();
 const fmtIndex = (n) => n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtPct = (x) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(2)}%`;
 const fmtContrib = (c) => `${c > 0 ? "+" : ""}${(c * 100).toFixed(2)}%`;
@@ -47,9 +47,12 @@ const state = {
   recordTaskId: "",
   lastExtract: null,
   lastFailed: null,
+  generation: 0,
+  activeRequest: null,
 };
 let currentResult = null;
 let drawerTimer = null;
+let requestSeq = 0;
 
 const records = () => (state.view === "sample" ? state.sample : state.personal);
 const persist = () => savePersonal(state.personal);
@@ -68,11 +71,34 @@ function action(text, fn, className = "action-btn") {
   return b;
 }
 
+function refreshToday() {
+  const next = localToday();
+  if (next === TODAY) return false;
+  TODAY = next;
+  state.sample = buildSampleRecords(TODAY);
+  return true;
+}
+
 function applyItems(items) {
+  refreshToday();
   const result = applyLedgerItems(state.personal, items, { today: TODAY });
   persist();
   renderAll();
-  return result.newPending;
+  return result;
+}
+
+function clearPersonalData() {
+  state.generation += 1;
+  state.activeRequest = null;
+  state.busy = false;
+  state.typing = false;
+  state.personal = clearPersonal();
+  state.clearArmed = false;
+  state.lastExtract = null;
+  state.lastFailed = null;
+  sendBtn.disabled = !entry.value.trim();
+  persist();
+  renderAll();
 }
 
 function setFocusMode(active) {
@@ -92,6 +118,7 @@ function scrollChat() {
 
 const chart = createChart($("#candles"), { onSelect: (i) => openDrawer(i) });
 function renderMarket() {
+  refreshToday();
   currentResult = computeAll(records(), { today: TODAY });
   const r = currentResult;
   $("#quote-value").textContent = fmtIndex(r.latest);
@@ -172,6 +199,7 @@ function retryFailed(m, useMock) {
 }
 
 function buildContext() {
+  refreshToday();
   return {
     today: TODAY,
     now: new Date().toISOString(),
@@ -183,9 +211,21 @@ function buildContext() {
   };
 }
 
+function recordFailure(text, error) {
+  const failed = { id: genId("msg"), role: "assistant", text: error.message, failed: { text, code: error.code } };
+  state.personal.chat.push(failed);
+  state.lastFailed = failed;
+  state.lastExtract = { status: "failed", message: error.message };
+  if (error.code !== "conflict") setModelState("degraded");
+}
+
 async function sendText(text, { skipUser = false, useMock = false } = {}) {
   if (state.busy) return;
+  refreshToday();
   if (state.view === "sample") setView("personal");
+  const generation = state.generation;
+  const requestId = ++requestSeq;
+  state.activeRequest = requestId;
   state.busy = true;
   state.lastExtract = { status: "waiting", text };
   sendBtn.disabled = true;
@@ -195,19 +235,21 @@ async function sendText(text, { skipUser = false, useMock = false } = {}) {
   renderRecords();
   enterFocusIfNeeded();
   const res = await extractor.send(text, buildContext(), { useMock });
+  if (generation !== state.generation || requestId !== state.activeRequest) return;
+  state.activeRequest = null;
   state.typing = false;
   state.busy = false;
   if (res.ok) {
-    const pending = applyItems(res.items);
-    state.personal.chat.push({ id: genId("msg"), role: "assistant", text: res.reply, pending, mode: res.mode });
-    state.lastExtract = { status: "success", mode: res.mode };
-    setModelState(res.mode === "model" ? "model" : "mock");
+    const write = applyItems(res.items);
+    if (!write.applied) {
+      recordFailure(text, { code: "conflict", message: "账本已变化，这次操作整批未写入。请按最新记录重试。" });
+    } else {
+      state.personal.chat.push({ id: genId("msg"), role: "assistant", text: res.reply, pending: write.newPending, mode: res.mode });
+      state.lastExtract = { status: "success", mode: res.mode };
+      setModelState(res.mode === "model" ? "model" : "mock");
+    }
   } else {
-    const failed = { id: genId("msg"), role: "assistant", text: res.error.message, failed: { text, code: res.error.code } };
-    state.personal.chat.push(failed);
-    state.lastFailed = failed;
-    state.lastExtract = { status: "failed", message: res.error.message };
-    setModelState("degraded");
+    recordFailure(text, res.error);
   }
   persist();
   renderAll();
@@ -354,7 +396,7 @@ function renderTasks() {
     } else {
       const wrap = el("div", "clear-confirm");
       wrap.append(el("span", "", "确定清空全部个人记录？不可恢复。"));
-      wrap.append(action("确定清空", () => { state.personal = clearPersonal(); state.clearArmed = false; persist(); renderAll(); }, "card-btn primary"));
+      wrap.append(action("确定清空", clearPersonalData, "card-btn primary"));
       wrap.append(action("取消", () => { state.clearArmed = false; renderDrawer(); }, "card-btn ghost"));
       foot.append(wrap);
     }
@@ -374,7 +416,7 @@ function taskRow(t) {
   if (t.status === "done" && t.doneAt) meta.append(el("span", "", `完成于 ${dateOf(t.doneAt)}`));
   row.append(head, meta);
   const actions = el("div", "card-actions");
-  if (editable() && t.status === "open") actions.append(action("标记完成", () => applyItems([{ op: "complete_task", id: t.id, doneAt: TODAY }]), "card-btn"));
+  if (editable() && t.status === "open") actions.append(action("标记完成", () => applyItems([{ op: "complete_task", id: t.id }]), "card-btn"));
   actions.append(action("目标详情", () => openEntityDrawer("goal", t.id), "card-btn ghost"));
   if (editable()) actions.append(action("删除", () => applyItems([{ op: "delete_task", id: t.id }]), "card-btn ghost"));
   row.append(actions);
@@ -406,7 +448,7 @@ function renderGoalList(container, list, emptyText) {
     main.append(title, meta);
     const actions = el("div", "goal-actions");
     actions.append(action("详情", () => openEntityDrawer("goal", t.id)));
-    if (editable() && t.status === "open") actions.append(action("完成", () => applyItems([{ op: "complete_task", id: t.id, doneAt: TODAY }]), "action-btn primary"));
+    if (editable() && t.status === "open") actions.append(action("完成", () => applyItems([{ op: "complete_task", id: t.id }]), "action-btn primary"));
     card.append(main, actions);
     container.append(card);
   }
@@ -431,7 +473,7 @@ function renderGoalDrawer() {
     const actions = el("section", "detail-card");
     actions.append(el("h3", "", "目标操作"));
     const row = el("div", "detail-actions");
-    if (t.status === "open") row.append(action("标记完成", () => applyItems([{ op: "complete_task", id: t.id, doneAt: TODAY }]), "action-btn primary"));
+    if (t.status === "open") row.append(action("标记完成", () => applyItems([{ op: "complete_task", id: t.id }]), "action-btn primary"));
     row.append(action("删除目标", () => applyItems([{ op: "delete_task", id: t.id }]), "action-btn danger"));
     actions.append(row);
     stack.append(actions);
@@ -592,7 +634,7 @@ function renderSettings() {
   if (editable()) {
     if (!state.clearArmed) actions.append(action("清空我的记录", () => { state.clearArmed = true; renderDrawer(); }, "action-btn danger"));
     else {
-      actions.append(action("确定清空", () => { state.personal = clearPersonal(); state.clearArmed = false; persist(); renderAll(); }, "action-btn danger"));
+      actions.append(action("确定清空", clearPersonalData, "action-btn danger"));
       actions.append(action("取消", () => { state.clearArmed = false; renderDrawer(); }));
     }
   }
@@ -601,6 +643,7 @@ function renderSettings() {
   drawerBody.append(stack);
 }
 function exportCurrent() {
+  refreshToday();
   const payload = { scope: state.view, exportedAt: new Date().toISOString(), records: records() };
   const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" }));
   const a = document.createElement("a");
@@ -651,6 +694,7 @@ scrim.addEventListener("click", closeDrawer);
 $("#tab-detail").addEventListener("click", () => { state.drawerTab = "detail"; syncTabs(); renderDrawer(); });
 $("#tab-tasks").addEventListener("click", () => { state.drawerTab = "tasks"; syncTabs(); renderDrawer(); });
 $("#goal-add-open").addEventListener("click", () => {
+  refreshToday();
   if (!editable()) setView("personal");
   $("#goal-form").hidden = false;
   $("#goal-due-input").value ||= shiftDate(TODAY, 7);
@@ -684,6 +728,8 @@ document.addEventListener("keydown", (e) => {
 });
 new ResizeObserver(() => enterFocusIfNeeded()).observe(stage);
 new ResizeObserver(() => enterFocusIfNeeded()).observe(messages);
+document.addEventListener("visibilitychange", () => { if (refreshToday()) renderAll(); });
+setInterval(() => { if (refreshToday()) renderAll(); }, 60000);
 
 setPage("market");
 renderAll();

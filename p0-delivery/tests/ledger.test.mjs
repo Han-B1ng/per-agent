@@ -90,3 +90,20 @@ test("v0.2：v1 迁移保留行为、pending 休息和已完成任务，清空�
   assert.equal(values.has("pe.personal.v2"), false);
   delete globalThis.localStorage;
 });
+
+test("PR#3 P2：确认冲突时整批回滚，新增记录也不得部分入账", () => {
+  const r = emptyPersonal();
+  applyItems(r, [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: TODAY, quote: "待确认事件", confidence: 0.4 } }], { today: TODAY, now: NOW, createId });
+  const id = r.events[0].id;
+  applyItems(r, [{ op: "deny_event", id }], { today: TODAY, now: NOW, createId });
+  const before = JSON.stringify(r);
+  const result = applyItems(r, [
+    { op: "confirm_event", id },
+    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: TODAY, quote: "不应写入的新事件", confidence: 0.9 } },
+  ], { today: TODAY, now: NOW, createId });
+  assert.equal(result.applied, false);
+  assert.equal(result.changed, 0);
+  assert.ok(result.errors.length > 0);
+  assert.equal(JSON.stringify(r), before);
+  assert.equal(r.events.some((e) => e.quote === "不应写入的新事件"), false);
+});

@@ -20,7 +20,7 @@
 ```bash
 cd /Users/han_b1ng/Han_B1ng/code/aicode/dasai/p0-delivery
 npm start              # http://localhost:8123 （旧原型 /legacy/）
-npm test               # 引擎 / 账本迁移 / 服务端 API / Sites Function 共 46 项单测
+npm test               # 引擎 / 账本迁移 / 服务端 API / Sites Function 共 47 项单测
 ```
 
 浏览器验收 / 样板对照需测试依赖（仅 devDependency，不影响应用零依赖启动）：
