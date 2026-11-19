@@ -2,7 +2,8 @@
   "date": "2026-11-19",
   "site": "https://personal-economy-1mv7fujlcon.qoder.zone",
   "access": "private",
-  "actionId": "404C8CB8-A6F5-4E14-8E9B-C84C73C63015",
+  "actionId": "033C1723-51C7-4113-B9AB-1507EA6B74C0",
+  "hotfixDeployBlocked": "sites_function_deploy_failed ENOSPC (platform); see docs/final-main-acceptance-2026-11-19.md",
   "publication": {
     "published": true,
     "readiness": "publication_completed",
