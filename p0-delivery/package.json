@@ -1,0 +1,20 @@
+{
+  "name": "personal-economy",
+  "version": "0.2.1",
+  "private": true,
+  "type": "module",
+  "description": "个人成长指数 P0：对话抽取 → 确定性引擎 → 周K + 计算明细",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "test": "node --test tests/engine.test.mjs tests/api.test.mjs tests/sites-function.test.mjs",
+    "test:install": "playwright install chromium ffmpeg",
+    "test:browser": "node tests/browser/acceptance.mjs",
+    "test:sample": "node tests/browser/observe-sample.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "playwright": "1.64.1"
+  }
+}
