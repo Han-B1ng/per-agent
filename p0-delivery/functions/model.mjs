@@ -4,6 +4,60 @@ import { buildSystemPrompt } from "./prompt.mjs";
 const OPS = new Set(["add_event", "add_rest", "add_task", "confirm_event", "deny_event", "delete_event", "confirm_rest", "deny_rest", "delete_rest", "complete_task", "delete_task"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
+function validDate(value) {
+  if (!DATE_RE.test(value || "")) return false;
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === value;
+}
+function validNumber(value, lo, hi, integer = false) {
+  return typeof value === "number" && Number.isFinite(value) && value >= lo && value <= hi && (!integer || Number.isInteger(value));
+}
+
+export function validateExtractItems(items, context) {
+  const errors = [];
+  const pendingEvents = new Set((context.pendingEvents || []).map((e) => e.id));
+  const pendingRests = new Set((context.pendingRests || []).map((r) => r.id));
+  const openTasks = new Set((context.openTasks || []).map((t) => t.id));
+  for (const [index, raw] of (Array.isArray(items) ? items : []).entries()) {
+    const at = `items[${index}]`;
+    if (!raw || typeof raw !== "object" || !OPS.has(raw.op)) { errors.push(`${at}: 无效操作`); continue; }
+    if (raw.op === "add_event") {
+      const e = raw.event;
+      if (!e || typeof e !== "object") { errors.push(`${at}: event 缺失`); continue; }
+      if (!["behavior", "emotion"].includes(e.eventType)) errors.push(`${at}: eventType 无效`);
+      if (e.eventType === "behavior" && !["positive", "negative", "neutral"].includes(e.polarity)) errors.push(`${at}: polarity 无效`);
+      if (!validNumber(e.intensity, 1, 5, true)) errors.push(`${at}: intensity 无效`);
+      if (!validDate(e.occurredAt)) errors.push(`${at}: occurredAt 无效`);
+      if (typeof e.quote !== "string" || !e.quote.trim()) errors.push(`${at}: quote 无效`);
+      if (!validNumber(e.confidence, 0, 1)) errors.push(`${at}: confidence 无效`);
+      if (e.tags != null && (!Array.isArray(e.tags) || e.tags.some((t) => typeof t !== "string"))) errors.push(`${at}: tags 无效`);
+    } else if (raw.op === "add_rest") {
+      const r = raw.rest;
+      if (!r || typeof r !== "object") { errors.push(`${at}: rest 缺失`); continue; }
+      if (!validDate(r.date)) errors.push(`${at}: date 无效`);
+      if (typeof r.quote !== "string" || !r.quote.trim()) errors.push(`${at}: quote 无效`);
+      if (!validNumber(r.confidence, 0, 1)) errors.push(`${at}: confidence 无效`);
+    } else if (raw.op === "add_task") {
+      const t = raw.task;
+      if (!t || typeof t !== "object") { errors.push(`${at}: task 缺失`); continue; }
+      if (typeof t.title !== "string" || !t.title.trim()) errors.push(`${at}: title 无效`);
+      if (!validDate(t.dueAt)) errors.push(`${at}: dueAt 无效`);
+      if (!validNumber(t.position, 1, 5, true)) errors.push(`${at}: position 无效`);
+      if (!validNumber(t.confidence, 0, 1)) errors.push(`${at}: confidence 无效`);
+    } else if (["confirm_event", "deny_event", "delete_event"].includes(raw.op)) {
+      if (typeof raw.id !== "string" || !pendingEvents.has(raw.id)) errors.push(`${at}: 事件引用不可处理`);
+      if (raw.occurredAt != null && !validDate(raw.occurredAt)) errors.push(`${at}: occurredAt 无效`);
+    } else if (["confirm_rest", "deny_rest", "delete_rest"].includes(raw.op)) {
+      if (typeof raw.id !== "string" || !pendingRests.has(raw.id)) errors.push(`${at}: 休息引用不可处理`);
+      if (raw.date != null && !validDate(raw.date)) errors.push(`${at}: date 无效`);
+    } else if (["complete_task", "delete_task"].includes(raw.op)) {
+      if (typeof raw.id !== "string" || !openTasks.has(raw.id)) errors.push(`${at}: 目标引用不可处理`);
+      if (raw.doneAt != null && !validDate(raw.doneAt)) errors.push(`${at}: doneAt 无效`);
+    }
+  }
+  return errors;
+}
+
 function clampInt(v, lo, hi, dflt) {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.max(lo, Math.min(hi, n)) : dflt;
@@ -106,5 +160,7 @@ export async function extract(text, context, env) {
   if (typeof parsed.reply !== "string" || !Array.isArray(parsed.items)) {
     return { ok: false, error: { code: "bad_output", message: "模型返回格式异常，这条没有录入。可以重试。" } };
   }
+  const errors = validateExtractItems(parsed.items, context);
+  if (errors.length) return { ok: false, error: { code: "bad_output", message: `模型返回未通过校验：${errors[0]}。这条没有录入。` } };
   return { ok: true, mode: "model", reply: parsed.reply, items: sanitizeItems(parsed.items, { ...context, text }) };
 }

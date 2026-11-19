@@ -80,12 +80,12 @@ test("resolveDate 各种相对词", () => {
   assert.equal(resolveDate("2026-11-01", TODAY), "2026-11-01");
 });
 
-test("model 路径 stub：透传 + sanitize（剥 score/clamp intensity/emotion 强制 neutral）+ 注入校验", async () => {
+test("model 路径 stub：透传 + sanitize（剥 score / emotion 强制 neutral）+ 注入校验", async () => {
   let seen = null;
   const up = await listen(stub((req, res, body) => {
     seen = { auth: req.headers.authorization, system: body.messages[0].content };
     res.writeHead(200, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: "记下了", items: [ { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 9, occurredAt: TODAY, quote: "跑", confidence: 0.9, score: 99 } }, { op: "add_event", event: { eventType: "emotion", polarity: "positive", intensity: 2, occurredAt: TODAY, quote: "焦虑", confidence: 0.8 } } ] }) } }] }));
+    res.end(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ reply: "记下了", items: [ { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 5, occurredAt: TODAY, quote: "跑", confidence: 0.9, score: 99 } }, { op: "add_event", event: { eventType: "emotion", polarity: "positive", intensity: 2, occurredAt: TODAY, quote: "焦虑", confidence: 0.8 } } ] }) } }] }));
   }));
   const s = await listen(createApp({ env: { MODEL_API_KEY: "test-key", MODEL_BASE_URL: base(up), MODEL_NAME: "stub" }, staticRoot: fixture() }));
   const { json } = await post(base(s), { text: "今天跑了五公里", context: ctx({ pendingEvents: [{ id: "p1", quote: "q", occurredAt: TODAY }], openTasks: [{ id: "t1", title: "课设", dueAt: TODAY, position: 3 }] }) });
@@ -158,7 +158,7 @@ test("静态：/ 200 html；穿越 404；未知 404", async () => {
   s.close();
 });
 
-test("非法 JSON 400；超长 text 400；confirm 未知 id 丢弃", async () => {
+test("非法 JSON 400；超长 text 400；confirm 未知 id 整次拒绝", async () => {
   const s = await listen(createApp({ env: {}, staticRoot: fixture() }));
   const bad = await fetch(base(s) + "/api/extract", { method: "POST", body: "{not json" });
   assert.equal(bad.status, 400);
@@ -167,14 +167,16 @@ test("非法 JSON 400；超长 text 400；confirm 未知 id 丢弃", async () =>
   const up = await listen(okUpstream({ reply: "r", items: [{ op: "confirm_event", id: "unknown" }] }));
   const s2 = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(up) }, staticRoot: fixture() }));
   const r = await post(base(s2), { text: "确认", context: ctx() });
-  assert.deepEqual(r.json.items, []);
+  assert.equal(r.json.ok, false);
+  assert.equal(r.json.error.code, "bad_output");
+  assert.equal(r.json.items, undefined);
   up.close(); s2.close(); s.close();
 });
-test("返工③ model sanitize：confirm_rest/deny_rest 仅接受注入的 pendingRests id", async () => {
-  const up = await listen(okUpstream({ reply: "r", items: [ { op: "confirm_rest", id: "r1", date: TODAY }, { op: "deny_rest", id: "unknown" }, { op: "add_rest", rest: { date: TODAY, quote: "想休息", confidence: 0.4 } } ] }));
+test("返工③ model sanitize：confirm_rest 接受当前 pendingRests id", async () => {
+  const up = await listen(okUpstream({ reply: "r", items: [ { op: "confirm_rest", id: "r1", date: TODAY }, { op: "add_rest", rest: { date: TODAY, quote: "想休息", confidence: 0.4 } } ] }));
   const s = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(up) }, staticRoot: fixture() }));
   const { json } = await post(base(s), { text: "确认", context: ctx({ pendingRests: [{ id: "r1", quote: "想休息", date: TODAY }] }) });
-  assert.equal(json.items.length, 2); // confirm_rest(r1) + add_rest；unknown deny_rest 丢弃
+  assert.equal(json.items.length, 2); // confirm_rest(r1) + add_rest
   assert.equal(json.items[0].op, "confirm_rest");
   assert.equal(json.items[0].date, TODAY);
   assert.equal(json.items[1].rest.confidence, 0.4);
