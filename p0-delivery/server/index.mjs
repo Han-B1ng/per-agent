@@ -31,8 +31,8 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "web"), legac
     return r.count > RATE_MAX;
   }
   function cacheKey(text, context, useMock) {
-    const ids = (context.pendingEvents || []).map((e) => e.id).join(",") + "|" + (context.openTasks || []).map((t) => t.id).join(",");
-    return createHash("sha256").update([text, context.today, ids, useMock ? "mock" : "auto"].join("\u0000")).digest("hex");
+    const effective = { today: context.today, clientId: context.clientId || "", openTasks: context.openTasks || [], pendingEvents: context.pendingEvents || [], pendingRests: context.pendingRests || [], turns: context.turns || [] };
+    return createHash("sha256").update(JSON.stringify({ text, context: effective, useMock })).digest("hex");
   }
   function cacheGet(key) {
     const hit = cache.get(key);

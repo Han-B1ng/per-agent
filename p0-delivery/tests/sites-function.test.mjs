@@ -8,9 +8,8 @@ const TODAY = "2026-11-17";
 const qcaPayload = {
   reply: "记下了今天的跑步。",
   items: [
-    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 9, occurredAt: TODAY, quote: "跑", confidence: 0.9, score: 99 } },
+    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 5, occurredAt: TODAY, quote: "跑", confidence: 0.9, score: 99 } },
     { op: "add_event", event: { eventType: "emotion", polarity: "positive", intensity: 2, occurredAt: TODAY, quote: "焦虑", confidence: 0.8 } },
-    { op: "confirm_rest", id: "unknown-rest" },
   ],
 };
 function stubFetch(routes) {
@@ -43,13 +42,13 @@ test("function health：有 PAT→model(qca)，无 PAT→mock", async () => {
   assert.equal((await r.json()).mode, "mock");
 });
 
-test("function extract：QCA 路径透传 + sanitize（clamp/剥score/未知id丢弃）", async () => {
+test("function extract：QCA 路径透传 + sanitize（剥 score / emotion 强制 neutral）", async () => {
   const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(qcaRoutes) });
   const r = await h(post({ text: "今天跑了五公里", context: { today: TODAY } }));
   const j = await r.json();
   assert.equal(j.ok, true);
   assert.equal(j.mode, "model");
-  assert.equal(j.items.length, 2); // unknown confirm_rest 丢弃
+  assert.equal(j.items.length, 2);
   assert.equal(j.items[0].event.intensity, 5);
   assert.ok(!("score" in j.items[0].event));
   assert.equal(j.items[1].event.polarity, "neutral");
@@ -74,4 +73,43 @@ test("function extract：QCA 超时→timeout 不录入；非法 body 400；未�
   assert.equal(r.status, 400);
   r = await h(req("/api/nope"));
   assert.equal(r.status, 404);
+});
+
+test("function extract：非法日期和不可处理引用整次拒绝，不返回部分 items", async () => {
+  const invalid = { reply: "错误", items: [{ op: "confirm_rest", id: "unknown-rest" }] };
+  const routes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(invalid) }] }] } };
+  const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(routes), logger: { info() {} } });
+  const r = await h(post({ text: "确认未知休息", context: { today: TODAY } }));
+  assert.equal(r.status, 502);
+  const j = await r.json();
+  assert.equal(j.ok, false);
+  assert.equal(j.error.code, "bad_output");
+  assert.equal(j.items, undefined);
+
+  const badDate = { reply: "错误", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-02-31", quote: "跑", confidence: 0.9 } }] };
+  const badRoutes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(badDate) }] }] } };
+  const h2 = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(badRoutes), logger: { info() {} } });
+  const r2 = await h2(post({ text: "非法日期", context: { today: TODAY } }));
+  assert.equal((await r2.json()).error.code, "bad_output");
+});
+
+test("function cache：按访客和完整有效上下文隔离", async () => {
+  const h = createHandler({ getToken: () => undefined, fetchImpl: stubFetch({}), logger: { info() {} } });
+  const context = { today: TODAY, clientId: "visitor-a", openTasks: [], pendingEvents: [], pendingRests: [], turns: [] };
+  const first = await (await h(post({ text: "今天跑了五公里", context }))).json();
+  const same = await (await h(post({ text: "今天跑了五公里", context }))).json();
+  const otherVisitor = await (await h(post({ text: "今天跑了五公里", context: { ...context, clientId: "visitor-b" } }))).json();
+  const otherTasks = await (await h(post({ text: "今天跑了五公里", context: { ...context, openTasks: [{ id: "task-new", title: "新目标", dueAt: TODAY, position: 3 }] } }))).json();
+  assert.equal(first.cached, undefined);
+  assert.equal(same.cached, true);
+  assert.equal(otherVisitor.cached, undefined);
+  assert.equal(otherTasks.cached, undefined);
+});
+
+test("function extract：单访客限流明确返回 rate_limited", async () => {
+  const h = createHandler({ getToken: () => undefined, fetchImpl: stubFetch({}), logger: { info() {} } });
+  let last;
+  for (let i = 0; i < 31; i++) last = await h(post({ text: `今天跑了五公里 ${i}`, context: { today: TODAY } }));
+  assert.equal(last.status, 429);
+  assert.equal((await last.json()).error.code, "rate_limited");
 });

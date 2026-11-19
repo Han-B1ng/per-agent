@@ -1,16 +1,16 @@
-# Personal Economy · 个人成长指数 — P0 统一交付包
+# Personal Economy · 个人成长指数 — v0.2 统一交付包
 
-> **本目录（`p0-delivery/`）是 P0 的全部交付物，自包含、可从本目录直接运行。**
+> **本目录（`p0-delivery/`）是当前版本的全部交付物，自包含、可从本目录直接运行。**
 > 机器位置：`/Users/han_b1ng/Han_B1ng/code/aicode/dasai/p0-delivery`
 > 2026 Qoder 高校创造力大赛参赛作品（LifeHack 倾向）。把人当一支股票：对话录入事件与任务，前端纯函数引擎算出「个人成长指数」，周 K 呈现，每一分可点开复算。竞品卖「被理解」，我们卖「被度量」。
 
-## 当前状态（P0 已交付，2026-11-17）
+## 当前状态（v0.2，2026-11-19）
 
-- **前后端 P0 可运行**：在本目录 `npm start` → http://localhost:8123。前端以已确认桌面样板为设计基准重置（`web/`），服务端仅一个模型代理 + 静态托管（`server/`，零 npm 依赖）。
-- **核心闭环**：发一句话 → 结构化记录（情绪/行为分离）→ 确定性引擎算分 → 周 K 即时更新 → 点 K 线右抽屉看三段式明细（原始→涨跌停调整→实际）→ 刷新后本地记录仍在。
-- **抽取三路径**：① Sites `qoder` 后端（Cloud Agents，免自备 Key、扣账户 Credits；已开通+私有发布，真实执行待 owner 登录试玩）；② 自备 `MODEL_API_KEY` 走 OpenAI 兼容代理；③ 无 Key 自动本地 Mock。模型超时/额度耗尽 → 失败不录入、样例与现有记录仍可查看、可重试或改用本地识别。
-- **样例人生**：首屏预置 90 天虚构样例（P3 真实经历待团队提供），顶栏「样例 / 我的」一键切换，与个人记录严格分离。
-- **验收**：见 [P0 交付验收单](docs/p0-delivery-2026-11-17.md)（52 项浏览器断言 + 39 项单测 + 18 项样板对照 + 双视口连续录屏；含返工四修复与 Sites qoder 接入）。
+- **三个主入口**：默认「行情」，侧栏另有「目标中心」「成长记录」。保留周 K、样例/我的、底部对话、按需计算明细与已确认的溢出专注动效。
+- **同一本地账本**：目标列表从任务状态派生，成长记录从行为/情绪/休息/任务完成事实派生，周 K 仍由 `web/engine.js` 全量重算；不为页面保存业务副本。`web/ledger.js` 集中新增、完成、确认、否认、修正与撤销。
+- **存储 v2**：`web/store.js` 自动读取并迁移 P0 的 `pe.personal.v1`，保留历史行为、pending 休息和已完成任务；样例只读，清空/导出按当前范围执行。
+- **模型契约**：沿用同源 `health/extract` 与 `reply/items`。真实模型字段、日期、操作和引用校验失败时整次拒绝；Sites 缓存按访客与完整有效上下文隔离，日志只记录请求状态、耗时与错误类别。
+- **验收**：P0 52 项浏览器断言 + 18 项样板对照继续保留；v0.2 新增工作区浏览器验收、双桌面视口与手机录屏、两个新页面真实截图。详见 v0.2 交付验收单与 `assets/v02-acceptance-results.json`。
 - 旧原型快照 `legacy/index.html` 作历史对照，本服务以 `/legacy/` 托管；已确认桌面样板快照在 `reference-sample/`。
 
 ## 快速开始（在本目录内）
@@ -20,7 +20,7 @@
 ```bash
 cd /Users/han_b1ng/Han_B1ng/code/aicode/dasai/p0-delivery
 npm start              # http://localhost:8123 （旧原型 /legacy/）
-npm test               # 引擎 22 + 服务端 API 13 + Sites Function 4 = 39 项单测
+npm test               # 引擎 / 账本迁移 / 服务端 API / Sites Function 共 46 项单测
 ```
 
 浏览器验收 / 样板对照需测试依赖（仅 devDependency，不影响应用零依赖启动）：
@@ -28,7 +28,8 @@ npm test               # 引擎 22 + 服务端 API 13 + Sites Function 4 = 39 �
 ```bash
 npm install            # 安装 playwright（devDependency）
 npm run test:install   # = playwright install chromium ffmpeg
-npm run test:browser   # 52 项浏览器验收（自托管服务+stub，录屏/截图/JSON）
+npm run test:browser   # 52 项 P0 浏览器回归（自托管服务+stub，录屏/截图/JSON）
+npm run test:v02       # v0.2 三入口验收 + 双桌面/手机录屏 + 新页面截图
 npm run test:sample    # 18 项样板对照（自托管 reference-sample/）
 ```
 
@@ -48,7 +49,9 @@ node --env-file=.env server/index.mjs
 | 路径 | 内容 |
 | --- | --- |
 | `web/` | P0 前端（样板壳 + 数据驱动周 K + 右抽屉明细 + 确认流 + 持久化） |
-| `web/engine.js` | 确定性引擎纯函数（D18–D36 口径，权重 v0.1 起点） |
+| `web/engine.js` | 确定性引擎纯函数（D18–D40 口径，权重 v0.1 起点） |
+| `web/ledger.js` | 统一写入动作、幂等完成、目标/成长记录派生查询与稳定 ID 关联 |
+| `web/store.js` | localStorage v2、P0 v1 自动迁移、样例/个人隔离 |
 | `server/` | 模型代理 + 静态托管 + 本地 Mock + 提示词（零依赖） |
 | `functions/` | Sites Edge Function（qoder→Cloud Agents，免钥；自包含包）+ `dev/` 本地入口 |
 | `tests/` | 引擎/API 单测 + 浏览器验收 harness |
@@ -75,5 +78,5 @@ node --env-file=.env server/index.mjs
 
 ## 关键文档
 
-- [P0 交付验收单](docs/p0-delivery-2026-11-17.md) · [算法规格快照](docs/reference/agent-engine-spec-v0.1.md) · [决策记录快照](docs/reference/decision-log.md)
+- [v0.2 交付验收单](docs/v02-delivery-2026-11-19.md) · [P0 交付验收单](docs/p0-delivery-2026-11-17.md) · [算法规格快照](docs/reference/agent-engine-spec-v0.1.md) · [决策记录快照](docs/reference/decision-log.md)
 - 上游权威（仓库根）：`../docs/design/`、`../docs/decisions/`、`../docs/collab/tasks.md`、`../docs/competition/rules.md`
