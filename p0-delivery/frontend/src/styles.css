@@ -598,3 +598,4 @@ canvas { display: block; width: 100%; height: 100%; }
   .record-empty { min-height: 300px !important; }
 }
 .is-empty-personal canvas { display: none !important; }
+.is-empty-personal .chart { background: #101114; }
