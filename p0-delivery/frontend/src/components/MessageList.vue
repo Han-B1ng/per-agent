@@ -4,7 +4,7 @@ import type { Workspace } from "../composables/useWorkspace";
 import type { EventRecord, RestRecord } from "../types";
 
 const ws = inject<Workspace>("workspace")!;
-const { personal, typing, findPending, confirmPending, denyPending, retryFailed, resetChat, resolveClarificationCandidate, cancelClarification } = ws;
+const { personal, typing, focusMode, conversationOpen, composerExtra, closeConversation, findPending, confirmPending, denyPending, retryFailed, resolveClarificationCandidate, cancelClarification } = ws;
 const scrollEl = ref<HTMLElement | null>(null);
 const stickToBottom = ref(true);
 
@@ -29,17 +29,25 @@ watch([() => personal.value.chat.length, typing], async () => {
   await nextTick();
   if (stickToBottom.value) scrollBottom();
 });
+watch(() => composerExtra.value, async () => {
+  await nextTick();
+  if (stickToBottom.value) scrollBottom();
+});
 onMounted(scrollBottom);
 </script>
 
 <template>
-  <div class="conversation-inner">
-    <header class="conversation-heading">
-      <h2>对话</h2>
-      <button id="reset" type="button" @click="resetChat">重置对话</button>
+  <div class="conversation-inner" :data-open="conversationOpen" :data-focus="focusMode">
+    <header v-if="!focusMode" class="conversation-heading">
+      <h2>最近对话</h2>
+      <button type="button" @click="closeConversation">收起对话</button>
     </header>
     <div class="message-scroll" ref="scrollEl" tabindex="0" aria-label="消息记录" @scroll="onScroll">
       <div class="messages" role="log" aria-live="polite" aria-relevant="additions">
+        <div v-if="!personal.chat.length && !typing" class="conversation-empty">
+          <h3>想从哪件事开始？</h3>
+          <p>可以记录一件小事、说说心情，或者设一个目标。</p>
+        </div>
         <p v-for="message in personal.chat" :key="message.id" class="message" :data-author="message.role">
           <span class="sr-only">{{ message.role === "user" ? "你：" : "助手：" }}</span>{{ message.text }}
           <template v-if="message.role === 'assistant'">

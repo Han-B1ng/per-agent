@@ -430,6 +430,8 @@ for (const reload of [false, true]) {
     if (reload) {
       await page.reload({ waitUntil: "networkidle" });
       await ensurePersonal(page);
+      await page.click("#entry");
+      await page.waitForTimeout(300);
     }
     if (selection === "click") {
       await page.locator('[data-candidate-id="evt_a"]').click();

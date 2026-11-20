@@ -15,6 +15,7 @@
     "test:browser": "npm run build && node tests/browser/acceptance.mjs",
     "test:v02": "npm run build && node tests/browser/workspace-v02.mjs",
     "test:agent": "npm run build && node tests/browser/agent-protocol.mjs",
+    "test:ui": "npm run build && node tests/browser/ui-handoff.mjs",
     "test:visual": "npm run build && node tests/browser/vue-market-visual.mjs",
     "test:sample": "node tests/browser/observe-sample.mjs"
   },

@@ -1,0 +1,181 @@
+{
+  "generatedAt": "2026-11-20T11:19:33.720Z",
+  "today": "2026-11-20",
+  "results": [
+    {
+      "name": "01 行情默认展示指数、周K与单行输入",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "24 有历史时默认仍折叠对话",
+      "pass": true,
+      "detail": "false"
+    },
+    {
+      "name": "24 输入聚焦展开最近对话且图表/输入框不动",
+      "pass": true,
+      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828},\"after\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828,\"mode\":\"market\"}}"
+    },
+    {
+      "name": "24 收起对话后恢复折叠",
+      "pass": true,
+      "detail": "false"
+    },
+    {
+      "name": "720 有两条短消息时首次聚焦仍保持行情",
+      "pass": true,
+      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648},\"after\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648,\"mode\":\"market\",\"content\":160}}"
+    },
+    {
+      "name": "02 实际溢出进入专注并保留顶部指数",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "02 多行输入时最后一条消息不被输入框遮挡",
+      "pass": true,
+      "detail": "{\"messageBottom\":579.5,\"composerTop\":768,\"extra\":\"60px\"}"
+    },
+    {
+      "name": "03 目标中心同屏未完成与已完成",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "05 成长记录按日期分组展示类型与贡献",
+      "pass": true,
+      "detail": "14"
+    },
+    {
+      "name": "06 本周复盘显示指数变化、完成/进行与贡献",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "11 设置展示本机数据与模型连接",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "主题：晨雾切换并重绘 Canvas",
+      "pass": true,
+      "detail": "{\"light\":{\"theme\":\"light\",\"bg\":\"rgb(243, 243, 239)\",\"stored\":\"light\"},\"changed\":true}"
+    },
+    {
+      "name": "主题：刷新保留选择",
+      "pass": true,
+      "detail": "light"
+    },
+    {
+      "name": "主题：午夜蓝切换",
+      "pass": true,
+      "detail": "{\"theme\":\"midnight\",\"bg\":\"rgb(13, 21, 36)\"}"
+    },
+    {
+      "name": "20 个人空账本有行情空态",
+      "pass": true,
+      "detail": "—"
+    },
+    {
+      "name": "21 成长记录空态给出记录入口",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "核心流程：记录一条行为后指数变化",
+      "pass": true,
+      "detail": "1026.6 → 1031.7"
+    },
+    {
+      "name": "核心流程：模糊日期进入待确认",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "待确认：抽屉空日期提示填写并保持 pending",
+      "pass": true,
+      "detail": "请填写生效日期；这条仍待确认。"
+    },
+    {
+      "name": "待确认：抽屉拒绝未来日期并保持 pending",
+      "pass": true,
+      "detail": "生效日期不能晚于今天；这条仍待确认。"
+    },
+    {
+      "name": "待确认：行内空日期提示填写并保持 pending",
+      "pass": true,
+      "detail": "请填写生效日期；这条仍待确认。"
+    },
+    {
+      "name": "待确认：行内拒绝未来日期并保持 pending",
+      "pass": true,
+      "detail": "生效日期不能晚于今天；这条仍待确认。"
+    },
+    {
+      "name": "核心流程：记录页确认后按历史日生效",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "核心流程：新增目标落账",
+      "pass": true,
+      "detail": "task_mwovzpvo_b"
+    },
+    {
+      "name": "弹窗：焦点进入、Esc 优先取消并回到触发按钮",
+      "pass": true,
+      "detail": "{\"focusInside\":true,\"escaped\":{\"open\":false,\"drawer\":true,\"focus\":\"完成目标\"}}"
+    },
+    {
+      "name": "核心流程：完成后出现成功反馈",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "核心流程：记录页出现唯一完成事实",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "核心流程：周复盘包含完成目标与贡献",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "核心流程：周 K 明细可打开",
+      "pass": true,
+      "detail": "周 K 计算明细"
+    },
+    {
+      "name": "核心流程：设置入口可用",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "连续录屏已生成",
+      "pass": true,
+      "detail": "/Users/han_b1ng/Han_B1ng/code/aicode/dasai-ui-handoff/docs/ui-handoff/videos/core-flow-1440x900.webm"
+    }
+  ],
+  "screenshots": [
+    "01-market.png",
+    "24-input-focus.png",
+    "02-conversation-focus.png",
+    "03-goals.png",
+    "04-goal-detail.png",
+    "05-records.png",
+    "06-weekly-review.png",
+    "08-goal-create.png",
+    "09-record-pending.png",
+    "10-record-detail.png",
+    "11-settings.png",
+    "12-goal-complete-confirm.png",
+    "13-goal-completed.png",
+    "20-market-personal-empty.png",
+    "21-records-empty.png",
+    "22-records-no-results.png",
+    "theme-light.png",
+    "theme-midnight.png"
+  ]
+}

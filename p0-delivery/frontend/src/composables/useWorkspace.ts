@@ -6,7 +6,7 @@ import {
 } from "../core";
 import type {
   AgentReceipt, ChatMessage, Clarification, ComputeResult, DataView, DrawerState, ExtractContext, ExtractItem, GoalView,
-  LedgerRecords, ModelState, Page, PersonalLedger, RecordFilters, TimelineRow,
+  LedgerRecords, ModelState, Page, PersonalLedger, RecordFilters, Theme, TimelineRow,
 } from "../types";
 
 function localToday(): string {
@@ -14,14 +14,29 @@ function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function storedTheme(): Theme {
+  try {
+    const value = localStorage.getItem("pe.theme.v1");
+    return value === "light" || value === "midnight" ? value : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
 export function useWorkspace() {
   const today = ref(localToday());
+  const theme = ref<Theme>(storedTheme());
+  document.documentElement.dataset.peTheme = theme.value;
   const personal = ref<PersonalLedger>(loadPersonal());
   const sample = ref(buildSampleRecords(today.value));
   const view = ref<DataView>("sample");
   const page = ref<Page>("market");
   const focusMode = ref(false);
   const focusLocked = ref(false);
+  const conversationOpen = ref(false);
+  const composerExtra = ref(0);
+  const completionRequest = ref<{ id: string; title: string } | null>(null);
+  const lastCompletedGoalId = ref("");
   const busy = ref(false);
   const typing = ref(false);
   const modelState = ref<ModelState>("mock");
@@ -55,7 +70,13 @@ export function useWorkspace() {
   const selectedTimelineRow = computed(() => getTimeline(records.value, result.value, { includeDeleted: true }).find((r) => r.id === drawer.id) ?? null);
   const auditHistory = computed(() => personal.value.audit.filter((a) => a.targetId === drawer.id).slice().reverse());
   const linkedTaskTitle = computed(() => records.value.tasks.find((t) => t.id === recordTaskId.value)?.title ?? recordTaskId.value);
+  const personalEmpty = computed(() => personal.value.events.length === 0 && personal.value.rests.length === 0 && personal.value.tasks.length === 0);
 
+  function setTheme(next: Theme) {
+    theme.value = next;
+    document.documentElement.dataset.peTheme = next;
+    try { localStorage.setItem("pe.theme.v1", next); } catch {}
+  }
   function refreshToday(): boolean {
     const next = localToday();
     if (next === today.value) return false;
@@ -75,6 +96,47 @@ export function useWorkspace() {
   function setFocus(active: boolean) {
     focusMode.value = active;
     focusLocked.value = !active;
+    conversationOpen.value = active;
+  }
+  function openConversation() {
+    conversationOpen.value = true;
+  }
+  function closeConversation() {
+    if (focusMode.value) setFocus(false);
+    else conversationOpen.value = false;
+  }
+  function focusComposer() {
+    if (view.value === "sample") setView("personal");
+    setPage("market");
+    conversationOpen.value = true;
+    composerFocusSignal.value += 1;
+  }
+  function openGoalForm() {
+    if (view.value === "sample") setView("personal");
+    setPage("goals");
+    goalFormOpen.value = true;
+  }
+  function openFirstActiveGoal() {
+    setPage("goals");
+    const goal = goals.value.active[0];
+    if (goal) openEntity("goal", goal.id);
+  }
+  function requestCompleteTask(id: string) {
+    const goal = [...goals.value.active, ...goals.value.done].find((entry) => entry.id === id);
+    if (!goal || goal.status !== "open") return;
+    completionRequest.value = { id: goal.id, title: goal.title };
+  }
+  function cancelCompletion() {
+    completionRequest.value = null;
+  }
+  function confirmCompletion() {
+    const request = completionRequest.value;
+    if (!request) return;
+    completeTask(request.id);
+    completionRequest.value = null;
+  }
+  function clearCompletedNotice() {
+    lastCompletedGoalId.value = "";
   }
   function setView(next: DataView) {
     view.value = next;
@@ -84,7 +146,10 @@ export function useWorkspace() {
     page.value = next;
     recordTaskId.value = next === "records" ? options.taskId ?? "" : "";
     navOpen.value = false;
-    if (next !== "market") focusMode.value = false;
+    if (next !== "market") {
+      focusMode.value = false;
+      conversationOpen.value = false;
+    }
     closeDrawer();
   }
   function openWeek(index: number) {
@@ -118,6 +183,9 @@ export function useWorkspace() {
   function clearPersonalData() {
     generation.value += 1;
     activeRequest.value = null;
+    completionRequest.value = null;
+    lastCompletedGoalId.value = "";
+    conversationOpen.value = false;
     busy.value = false;
     typing.value = false;
     personal.value = clearPersonal();
@@ -351,6 +419,7 @@ export function useWorkspace() {
     busy.value = true;
     let context = buildContext(options.skipUser ? text : "");
     if (!options.skipUser) personal.value.chat.push({ id: genId("msg"), role: "user", text });
+    conversationOpen.value = true;
     const local = tryResolveClarification(text);
     if (local !== "none") {
       const continueWithModel = (local === "resolved" || local === "cancelled") && hasAdditionalIntent(text);
@@ -382,8 +451,24 @@ export function useWorkspace() {
     persist();
     void sendText(message.failed.text, { skipUser: true, useMock });
   }
-  function confirmPending(id: string, kind: "event" | "rest", date?: string) {
-    commit([{ op: kind === "rest" ? "confirm_rest" : "confirm_event", id, ...(date ? (kind === "rest" ? { date } : { occurredAt: date }) : {}) } as ExtractItem]);
+  function realDate(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return false;
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === value;
+  }
+  function confirmPending(id: string, kind: "event" | "rest", date?: string): { ok: boolean; message?: string } {
+    const rest = kind === "rest" ? personal.value.rests.find((entry) => entry.id === id && entry.status === "pending" && entry.deletedAt == null) : null;
+    const event = kind === "event" ? personal.value.events.find((entry) => entry.id === id && entry.status === "pending" && entry.deletedAt == null) : null;
+    if (!rest && !event) return { ok: false, message: "这条记录已处理或不存在；账本没有变化。" };
+    const effectiveDate = date === undefined ? (rest ? rest.date : event!.occurredAt) : date;
+    if (!effectiveDate) return { ok: false, message: "请填写生效日期；这条仍待确认。" };
+    if (!realDate(effectiveDate)) return { ok: false, message: "生效日期格式无效；这条仍待确认。" };
+    if (effectiveDate > today.value) {
+      return { ok: false, message: "生效日期不能晚于今天；这条仍待确认。" };
+    }
+    const write = commit([{ op: kind === "rest" ? "confirm_rest" : "confirm_event", id, ...(kind === "rest" ? { date: effectiveDate } : { occurredAt: effectiveDate }) } as ExtractItem]);
+    if (!write.applied) return { ok: false, message: write.errors[0] || "写入失败，这条仍待确认。" };
+    return { ok: true };
   }
   function denyPending(id: string, kind: "event" | "rest") {
     commit([{ op: kind === "rest" ? "deny_rest" : "deny_event", id } as ExtractItem]);
@@ -392,7 +477,9 @@ export function useWorkspace() {
     commit([{ op: kind === "rest" ? "delete_rest" : "delete_event", id } as ExtractItem]);
   }
   function completeTask(id: string) {
-    commit([{ op: "complete_task", id }]);
+    const write = commit([{ op: "complete_task", id }]);
+    if (write.applied && write.changed > 0) lastCompletedGoalId.value = id;
+    return write;
   }
   function deleteTask(id: string) {
     commit([{ op: "delete_task", id }]);
@@ -437,11 +524,13 @@ export function useWorkspace() {
   }
 
   return {
-    today, personal, sample, view, page, focusMode, focusLocked, busy, typing, modelState, navOpen, draft,
+    today, personal, sample, view, page, theme, focusMode, focusLocked, conversationOpen, composerExtra, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
     clearArmed, goalFormOpen, recordTaskId, composerFocusSignal, lastExtract, lastFailed, drawer, filters,
     records, editable, result, goals, timeline, hasMessages, currentWeek, selectedGoal, selectedRecord,
     selectedTimelineRow, auditHistory, linkedTaskTitle, SAMPLE_META,
-    refreshToday, persist, commit, setFocus, setView, setPage, openWeek, openEntity, closeDrawer,
+    refreshToday, persist, commit, setTheme, setFocus, openConversation, closeConversation, focusComposer,
+    openGoalForm, openFirstActiveGoal, requestCompleteTask, cancelCompletion, confirmCompletion,
+    clearCompletedNotice, setView, setPage, openWeek, openEntity, closeDrawer,
     openWeekForDate, clearPersonalData, resetChat, sendText, retryFailed, confirmPending, denyPending,
     resolveClarificationCandidate, cancelClarification,
     deleteRecord, completeTask, deleteTask, addGoal, correctRecord, clearFilters, exportCurrent,
