@@ -51,6 +51,7 @@ export function useWorkspace() {
   const generation = ref(0);
   const activeRequest = ref<number | null>(null);
   let requestSeq = 0;
+  let ledgerWrites = 0;
 
   const drawer = reactive<DrawerState>({ open: false, mode: "week", week: null, id: null, tab: "detail" });
   const filters = reactive<RecordFilters>({ from: "", to: "", keyword: "", type: "all", taskId: "", includeDeleted: false });
@@ -90,6 +91,7 @@ export function useWorkspace() {
   function commit(items: ExtractItem[]) {
     refreshToday();
     const write = applyItems(personal.value, items, { today: today.value });
+    if (write.applied && (write.changed > 0 || write.newPending.length > 0)) ledgerWrites += 1;
     persist();
     return write;
   }
@@ -140,6 +142,9 @@ export function useWorkspace() {
   function setView(next: DataView) {
     view.value = next;
     closeDrawer();
+  }
+  function syncViewAfterWrite(wasSample: boolean, writesBefore: number) {
+    if (wasSample && ledgerWrites > writesBefore) setView("personal");
   }
   function setPage(next: Page, options: { taskId?: string } = {}) {
     page.value = next;
@@ -411,7 +416,8 @@ export function useWorkspace() {
     if (busy.value) return;
     focusLocked.value = false;
     refreshToday();
-    if (view.value === "sample") setView("personal");
+    const wasSample = view.value === "sample";
+    const writesBefore = ledgerWrites;
     const requestGeneration = generation.value;
     const requestId = ++requestSeq;
     activeRequest.value = requestId;
@@ -425,6 +431,7 @@ export function useWorkspace() {
       if (!continueWithModel) {
         activeRequest.value = null;
         busy.value = false;
+        syncViewAfterWrite(wasSample, writesBefore);
         composerFocusSignal.value += 1;
         return;
       }
@@ -440,6 +447,7 @@ export function useWorkspace() {
     if (response.ok) applyAgentResponse(text, response);
     else recordFailure(text, response.error);
     persist();
+    syncViewAfterWrite(wasSample, writesBefore);
     composerFocusSignal.value += 1;
   }
   function retryFailed(message: ChatMessage, useMock: boolean) {
