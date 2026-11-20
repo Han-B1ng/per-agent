@@ -1,5 +1,5 @@
 import { ref } from "vue";
-import type { Theme } from "../types";
+import type { PersonalLedger, RestoreResult, Theme } from "../types";
 import { useLedger } from "./useLedger";
 import { useNavigation } from "./useNavigation";
 import { useChat } from "./useChat";
@@ -37,6 +37,13 @@ export function useWorkspace() {
     ledger.internal.clearData();
     navigation.internal.resetForClear();
   }
+  function restorePersonal(next: PersonalLedger): RestoreResult {
+    const result = ledger.internal.restoreBackup(next);
+    if (!result.ok) return result;
+    chat.internal.clearInFlight();
+    navigation.internal.resetForRestore();
+    return result;
+  }
   function resetChat() {
     navigation.api.setFocus(false);
     chat.api.resetChat();
@@ -50,6 +57,7 @@ export function useWorkspace() {
     setTheme,
     focusComposer,
     clearPersonalData,
+    restorePersonal,
     resetChat,
   };
 }

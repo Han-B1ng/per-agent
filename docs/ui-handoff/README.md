@@ -20,6 +20,14 @@ npm run test:ui      # 三态、主题、页面与核心流程；生成本目录
 - 顺序录屏原始完整版：`videos/market-focus-sequence-raw-1440x900.webm`
 - 原始断言：`acceptance.json`
 
+## 2026-11-21 增补：本机数据 JSON 恢复
+
+- 入口：设置 → 本机数据，在「导出我的 JSON」旁新增「从 JSON 恢复」。
+- 验收媒体保留在 [PR #20](https://github.com/Han-B1ng/per-agent/pull/20) 的 `632ac5b` 提交，不进入 `main`：
+  - 截图：[25 入口](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/25-restore-settings.png)、[26 覆盖确认](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/26-restore-confirm.png)、[29 文件无效](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/29-restore-invalid-file.png)、[27 写入失败](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/27-restore-storage-failed.png)、[28 普通记账未保存](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/28-persist-unsaved.png)。
+  - 录屏：[restore-flow](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/videos/restore-flow-1440x900.webm)（导出 → 清空 → 选择备份 → 校验 → 确认覆盖 → 行情/目标/记录同步 → 刷新一致）；[restore-write-retry](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/videos/restore-write-retry-1440x900.webm)（模拟 localStorage 写入失败 → 未保存且无成功回执 → 恢复存储后重试成功）。
+- 复跑：`cd p0-delivery && npm run test:restore`（50 项）。
+
 ## 本轮范围
 
 - 行情两态：行情态只显示指数、周 K、明细入口和底部输入框；点击输入框只聚焦，聊天历史和快捷提示收起。有效发送（点击发送与 Enter 同一逻辑）立即进入专注：马上显示用户消息和等待态，卡片底色/边框/摘要/工具栏退场，仅原周 K 绘图区放大渐隐、过渡后静止且绘图区高度不变，页头保留点位、涨跌幅与返回行情；聊天区独立滚动、输入框留底，返回行情收起聊天并保留历史与草稿。样例页闲聊不切换数据视图，只有账本写入后才切到「我的」。

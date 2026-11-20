@@ -1,6 +1,7 @@
 // 本地持久化：个人记录与样例严格分离。v2 原地迁移 v1，迁移前保留原键以便回退。
 const KEY = "pe.personal.v2";
 const LEGACY_KEY = "pe.personal.v1";
+const PERSONAL_VERSION = 2;
 
 export function emptyPersonal() {
   return { version: 2, events: [], rests: [], tasks: [], chat: [], audit: [] };
@@ -95,6 +96,44 @@ function normalize(p) {
   };
 }
 
+const isObject = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+const V1_FIELDS = ["events", "rests", "tasks", "chat"];
+const V2_FIELDS = [...V1_FIELDS, "audit"];
+
+function invalidBackup(message) {
+  return { ok: false, code: "invalid_file", message: `文件无效：${message}` };
+}
+
+// 恢复沿用存储层的 normalize：v1 备份走同一条迁移；v2 必须符合当前导出的完整字段。
+export function parsePersonalBackup(text) {
+  if (typeof text !== "string" || !text.trim()) return invalidBackup("文件为空或无法读取。");
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return invalidBackup("不是有效的 JSON。");
+  }
+  if (!isObject(data)) return invalidBackup("没有找到账本数据。");
+  if (data.scope != null && data.scope !== "personal") return invalidBackup("这不是个人账本备份。");
+  if (data.scope === "personal" && !isObject(data.records)) return invalidBackup("备份缺少 records 账本对象。");
+  const ledger = data.scope === "personal" ? data.records : data;
+  const version = ledger.version == null ? 1 : ledger.version;
+  if (!Number.isInteger(version) || version < 1) return invalidBackup("版本号无法识别。");
+  if (version > PERSONAL_VERSION) return { ok: false, code: "unsupported_version", message: `版本暂不支持：备份为 v${version}，当前支持 v1 与 v${PERSONAL_VERSION}。` };
+  const fields = version === 2 ? V2_FIELDS : V1_FIELDS;
+  const badFields = fields.filter((key) => !Array.isArray(ledger[key]));
+  if (badFields.length) return invalidBackup(`v${version} 备份的 ${badFields.join("、")} 字段缺失或不是数组。`);
+  const normalized = normalize(ledger);
+  const dropped = fields
+    .map((key) => ({ key, count: ledger[key].length - normalized[key].length }))
+    .filter((entry) => entry.count > 0);
+  if (dropped.length) {
+    const detail = dropped.map(({ key, count }) => `${key} ${count} 条`).join("、");
+    return invalidBackup(`${detail}记录无法识别，已取消恢复。`);
+  }
+  return { ok: true, version, ledger: normalized };
+}
+
 export function loadPersonal() {
   try {
     const current = localStorage.getItem(KEY);
@@ -112,8 +151,10 @@ export function loadPersonal() {
 export function savePersonal(p) {
   try {
     localStorage.setItem(KEY, JSON.stringify(normalize(p)));
+    return true;
   } catch {
-    // 存储不可用（隐私模式/配额）时保持内存态，不阻断交互
+    // 存储不可用（隐私模式/配额）时返回失败，由调用方提示未保存
+    return false;
   }
 }
 

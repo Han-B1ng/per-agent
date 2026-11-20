@@ -36,7 +36,7 @@ npm start
 2. 应用校验操作并写入浏览器账本。低置信度记录先进入待确认状态。
 3. 计分引擎用已生效记录重算指数、周 K 和明细。目标中心与成长记录读取同一份账本。
 
-前端使用 **Vue 3、TypeScript 和 Vite**，周 K 使用 **Canvas** 绘制。个人账本通过 **localStorage** 保存在当前浏览器。启用真实模型时，消息和抽取所需的上下文会发送给配置的模型服务。
+前端使用 **Vue 3、TypeScript 和 Vite**，周 K 使用 **Canvas** 绘制。个人账本通过 **localStorage** 保存在当前浏览器。设置中可以导出 JSON 备份，也可以从备份恢复：恢复前会校验文件并区分文件无效、版本暂不支持，确认覆盖后才写入；浏览器写入失败时保留原账本。启用真实模型时，消息和抽取所需的上下文会发送给配置的模型服务。
 
 ## 项目结构
 
@@ -81,6 +81,7 @@ npm run test:install
 | `npm run test:browser` | 核心流程、待确认、持久化和模型降级 |
 | `npm run test:v02` | 三个页面之间的账本联动 |
 | `npm run test:agent` | 三意图、澄清候选、逐项日期、回执与 Sites 复用协议 |
+| `npm run test:restore` | 设置页 JSON 恢复：导出后恢复、无效文件与版本、写入失败与重试 |
 | `npm run test:functions` | 独立临时目录加载生成的 Function 包，stub QCA，校验依赖闭环 |
 | `npm run test:ui` | 行情两态、目标/记录/设置画板与核心流程；输出 `docs/ui-handoff/` 证据 |
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |

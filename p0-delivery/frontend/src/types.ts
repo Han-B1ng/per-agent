@@ -197,6 +197,16 @@ export interface WriteResult {
   applied: boolean;
 }
 
+export interface CommitResult extends WriteResult {
+  saved: boolean;
+}
+
+export type BackupErrorCode = "invalid_file" | "unsupported_version";
+export type BackupParseResult =
+  | { ok: true; version: number; ledger: PersonalLedger }
+  | { ok: false; code: BackupErrorCode; message: string };
+export type RestoreResult = { ok: true } | { ok: false; code: "storage_failed"; message: string };
+
 export interface GoalView extends TaskRecord {
   displayStatus: "open" | "overdue" | "paused" | "done";
 }
