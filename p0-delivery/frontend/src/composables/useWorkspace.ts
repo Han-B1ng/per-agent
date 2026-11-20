@@ -32,8 +32,6 @@ export function useWorkspace() {
   const view = ref<DataView>("sample");
   const page = ref<Page>("market");
   const focusMode = ref(false);
-  const focusLocked = ref(false);
-  const conversationOpen = ref(false);
   const composerExtra = ref(0);
   const completionRequest = ref<{ id: string; title: string } | null>(null);
   const lastCompletedGoalId = ref("");
@@ -97,15 +95,6 @@ export function useWorkspace() {
   }
   function setFocus(active: boolean) {
     focusMode.value = active;
-    focusLocked.value = !active;
-    conversationOpen.value = active;
-  }
-  function openConversation() {
-    conversationOpen.value = true;
-  }
-  function closeConversation() {
-    if (focusMode.value) setFocus(false);
-    else conversationOpen.value = false;
   }
   function focusComposer() {
     if (view.value === "sample") setView("personal");
@@ -152,7 +141,6 @@ export function useWorkspace() {
     navOpen.value = false;
     if (next !== "market") {
       focusMode.value = false;
-      conversationOpen.value = false;
     }
     closeDrawer();
   }
@@ -189,7 +177,7 @@ export function useWorkspace() {
     activeRequest.value = null;
     completionRequest.value = null;
     lastCompletedGoalId.value = "";
-    conversationOpen.value = false;
+    focusMode.value = false;
     busy.value = false;
     typing.value = false;
     personal.value = clearPersonal();
@@ -414,7 +402,6 @@ export function useWorkspace() {
   }
   async function sendText(text: string, options: { skipUser?: boolean; useMock?: boolean } = {}) {
     if (busy.value) return;
-    focusLocked.value = false;
     refreshToday();
     const wasSample = view.value === "sample";
     const writesBefore = ledgerWrites;
@@ -424,7 +411,7 @@ export function useWorkspace() {
     busy.value = true;
     let context = buildContext(options.skipUser ? text : "");
     if (!options.skipUser) personal.value.chat.push({ id: genId("msg"), role: "user", text });
-    openConversation();
+    setFocus(true);
     const local = tryResolveClarification(text);
     if (local !== "none") {
       const continueWithModel = (local === "resolved" || local === "cancelled") && hasAdditionalIntent(text);
@@ -531,11 +518,11 @@ export function useWorkspace() {
   }
 
   return {
-    today, personal, sample, view, page, theme, focusMode, focusLocked, conversationOpen, composerExtra, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
+    today, personal, sample, view, page, theme, focusMode, composerExtra, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
     clearArmed, goalFormOpen, recordTaskId, composerFocusSignal, lastExtract, lastFailed, drawer, filters,
     records, editable, result, goals, timeline, hasMessages, currentWeek, selectedGoal, selectedRecord,
     selectedTimelineRow, auditHistory, linkedTaskTitle, SAMPLE_META,
-    refreshToday, persist, commit, setTheme, setFocus, openConversation, closeConversation, focusComposer,
+    refreshToday, persist, commit, setTheme, setFocus, focusComposer,
     openGoalForm, openFirstActiveGoal, requestCompleteTask, cancelCompletion, confirmCompletion,
     clearCompletedNotice, setView, setPage, openWeek, openEntity, closeDrawer,
     openWeekForDate, clearPersonalData, resetChat, sendText, retryFailed, confirmPending, denyPending,

@@ -721,3 +721,7 @@ body { background: var(--pe-color-surface-canvas); }
 
 /* Focus: card chrome exits; only the chart drawing remains as a static faded background */
 .workspace[data-mode="focus"] .market-card { background: none; border-color: transparent; box-shadow: none; }
+
+/* Two states only: the conversation appears immediately in focus, hidden in market */
+.conversation { top: 64px; transition: none; }
+.conversation.is-collapsed { visibility: hidden; opacity: 0; pointer-events: none; }
