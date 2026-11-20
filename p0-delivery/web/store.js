@@ -23,7 +23,66 @@ function normalizeTask(t) {
 }
 function normalizeMessage(m) {
   if (!m || !isId(m.id) || typeof m.text !== "string" || !["user", "assistant"].includes(m.role)) return null;
-  return { ...m, pending: Array.isArray(m.pending) ? m.pending.filter(isId) : undefined };
+  const out = { ...m, pending: Array.isArray(m.pending) ? m.pending.filter(isId) : undefined };
+  if (["model", "mock", "local"].includes(m.mode)) out.mode = m.mode;
+  else delete out.mode;
+  if (Array.isArray(m.clarifications)) {
+    out.clarifications = m.clarifications.map(normalizeClarification).filter(Boolean);
+    if (!out.clarifications.length) delete out.clarifications;
+  } else {
+    delete out.clarifications;
+  }
+  if (m.receipt && typeof m.receipt === "object") {
+    const statuses = ["applied", "pending", "clarification", "noop", "empty"];
+    out.receipt = {
+      status: statuses.includes(m.receipt.status) ? m.receipt.status : "empty",
+      changed: Math.max(0, Number(m.receipt.changed) || 0),
+      pending: Math.max(0, Number(m.receipt.pending) || 0),
+      noop: Math.max(0, Number(m.receipt.noop) || 0),
+      clarifications: Math.max(0, Number(m.receipt.clarifications) || 0),
+    };
+  } else {
+    delete out.receipt;
+  }
+  return out;
+}
+
+function normalizeClarification(c) {
+  if (!c || !isId(c.id) || typeof c.question !== "string") return null;
+  if (!["task_target", "record_target"].includes(c.kind)) return null;
+  if (!["pending", "resolved", "cancelled"].includes(c.status)) return null;
+  const intents = ["complete_task", "delete_task", "confirm_event", "deny_event", "delete_event", "confirm_rest", "deny_rest", "delete_rest"];
+  if (!intents.includes(c.intent)) return null;
+  const candidates = (Array.isArray(c.candidates) ? c.candidates : []).slice(0, 5).map((candidate) => {
+    if (!candidate || !isId(candidate.id) || typeof candidate.label !== "string" || !candidate.label) return null;
+    const item = { id: candidate.id, label: candidate.label.slice(0, 120), kind: ["task", "event", "rest"].includes(candidate.kind) ? candidate.kind : "task" };
+    if (typeof candidate.title === "string") item.title = candidate.title.slice(0, 120);
+    if (isDate(candidate.dueAt)) item.dueAt = candidate.dueAt;
+    if (typeof candidate.quote === "string") item.quote = candidate.quote.slice(0, 200);
+    if (isDate(candidate.date)) item.date = candidate.date;
+    return item;
+  }).filter(Boolean);
+  if (!candidates.length) return null;
+  const out = {
+    id: c.id,
+    kind: c.kind,
+    intent: c.intent,
+    question: c.question.slice(0, 200),
+    sourceText: typeof c.sourceText === "string" ? c.sourceText.slice(0, 200) : "",
+    candidates,
+    status: c.status,
+    createdAt: typeof c.createdAt === "string" ? c.createdAt : new Date().toISOString(),
+  };
+  if (isDate(c.answerDate)) out.answerDate = c.answerDate;
+  if (typeof c.resolvedAt === "string") out.resolvedAt = c.resolvedAt;
+  if (c.resolution && typeof c.resolution === "object") {
+    out.resolution = {
+      text: typeof c.resolution.text === "string" ? c.resolution.text.slice(0, 200) : "",
+      ...(typeof c.resolution.targetId === "string" ? { targetId: c.resolution.targetId } : {}),
+      ...(typeof c.resolution.op === "string" ? { op: c.resolution.op } : {}),
+    };
+  }
+  return out;
 }
 function normalize(p) {
   return {

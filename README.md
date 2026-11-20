@@ -43,14 +43,12 @@ npm start
 | 目录 | 职责 |
 | --- | --- |
 | [`p0-delivery/frontend/`](p0-delivery/frontend/) | 页面、组件、样式和应用状态 |
-| [`p0-delivery/web/`](p0-delivery/web/) | 账本、存储迁移、计分引擎和图表绘制 |
+| [`p0-delivery/web/`](p0-delivery/web/) | 账本、存储迁移、计分引擎、图表绘制与 Agent 协议工具 |
 | [`p0-delivery/weekly-review/`](p0-delivery/weekly-review/) | 周复盘的数据派生和展示 |
-| [`p0-delivery/server/`](p0-delivery/server/) | 本地静态服务、Mock 和模型代理 |
+| [`p0-delivery/server/`](p0-delivery/server/) | 本地静态服务、Mock、模型代理与协议校验 |
 | [`p0-delivery/functions/`](p0-delivery/functions/) | Qoder Sites Function 和 Cloud Agents 调用 |
 | [`p0-delivery/tests/`](p0-delivery/tests/) | 引擎、账本、接口和浏览器回归 |
-| [`docs/`](docs/) | 产品设计、算法规格和决策记录 |
-
-## 模型配置与部署
+| [`docs/`](docs/) | 产品设计、算法规格、决策记录与 [Agent 交流协议](docs/design/agent-communication-protocol-v0.1.md) |
 
 | 环境 | 抽取方式 | 接口 |
 | --- | --- | --- |
@@ -80,6 +78,7 @@ npm run test:install
 | --- | --- |
 | `npm run test:browser` | 核心流程、待确认、持久化和模型降级 |
 | `npm run test:v02` | 三个页面之间的账本联动 |
+| `npm run test:agent` | 三意图、澄清候选、逐项日期、回执与 Sites 复用协议 |
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |
 | `npm run test:sample` | 与现有桌面交互样板的对照 |
 
@@ -90,4 +89,5 @@ npm run test:install
 - [产品与工作台设计](docs/design/product-workspace-v0.2-proposal.md)
 - [事件、目标与指数算法](docs/design/agent-engine-spec-v0.1.md)
 - [产品与算法决策记录](docs/decisions/decision-log.md)
+- [Agent 交流协议与示例](docs/design/agent-communication-protocol-v0.1.md)
 - [贡献与协作约定](AGENTS.md)

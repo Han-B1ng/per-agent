@@ -31,22 +31,54 @@ function validDate(value) {
 function readContext(raw) {
   if (raw != null && (typeof raw !== "object" || Array.isArray(raw))) return { error: "context 必须是对象" };
   const source = raw || {};
-  for (const key of ["openTasks", "pendingEvents", "pendingRests", "turns"]) {
+  for (const key of ["openTasks", "pendingEvents", "pendingRests", "turns", "clarifications"]) {
     if (source[key] != null && !Array.isArray(source[key])) return { error: `${key} 必须是数组` };
   }
   const today = source.today || new Date().toISOString().slice(0, 10);
   if (!validDate(today)) return { error: "today 日期无效" };
-  const clean = (key, limit) => (source[key] || []).slice(0, limit).filter((x) => x && typeof x === "object");
+  const clean = (key, limit, from = source) => (from[key] || []).slice(0, limit).filter((x) => x && typeof x === "object");
   const context = {
     today,
     clientId: typeof source.clientId === "string" ? source.clientId.slice(0, 100) : "",
     openTasks: clean("openTasks", 200),
     pendingEvents: clean("pendingEvents", 200),
     pendingRests: clean("pendingRests", 200),
+    clarifications: clean("clarifications", 5).map((c) => ({
+      id: typeof c.id === "string" ? c.id.slice(0, 100) : "",
+      kind: c.kind,
+      intent: c.intent,
+      question: String(c.question || "").slice(0, 200),
+      sourceText: String(c.sourceText || "").slice(0, 200),
+      candidates: clean("candidates", 5, c).map((candidate) => ({
+        id: typeof candidate.id === "string" ? candidate.id.slice(0, 100) : "",
+        label: String(candidate.label || candidate.title || candidate.quote || "").slice(0, 120),
+        kind: candidate.kind,
+        ...(candidate.title ? { title: String(candidate.title).slice(0, 120) } : {}),
+        ...(candidate.dueAt ? { dueAt: String(candidate.dueAt).slice(0, 10) } : {}),
+        ...(candidate.quote ? { quote: String(candidate.quote).slice(0, 200) } : {}),
+        ...(candidate.date ? { date: String(candidate.date).slice(0, 10) } : {}),
+      })),
+    })).filter((c) => c.id && ["task_target", "record_target"].includes(c.kind) && c.candidates.length),
     turns: clean("turns", 10).map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: String(m.content || "").slice(0, 1500) })),
   };
   for (const list of [context.openTasks, context.pendingEvents, context.pendingRests]) {
     if (list.some((x) => typeof x.id !== "string" || !x.id)) return { error: "上下文引用 ID 无效" };
+  }
+  context.openTasks = context.openTasks
+    .filter((task) => typeof task.title === "string" && task.title.trim() && validDate(task.dueAt))
+    .map((task) => ({ ...task, position: Number.isInteger(task.position) && task.position >= 1 && task.position <= 5 ? task.position : 2 }));
+  context.pendingEvents = context.pendingEvents.filter((event) => typeof event.quote === "string" && validDate(event.occurredAt));
+  context.pendingRests = context.pendingRests.filter((rest) => typeof rest.quote === "string" && validDate(rest.date));
+  const taskIds = new Set(context.openTasks.map((task) => task.id));
+  const eventIds = new Set(context.pendingEvents.map((event) => event.id));
+  const restIds = new Set(context.pendingRests.map((rest) => rest.id));
+  context.clarifications = context.clarifications.map((clarification) => {
+    const isRest = ["confirm_rest", "deny_rest", "delete_rest"].includes(clarification.intent);
+    const pool = clarification.kind === "task_target" ? taskIds : isRest ? restIds : eventIds;
+    return { ...clarification, candidates: clarification.candidates.filter((candidate) => typeof candidate.id === "string" && candidate.id && pool.has(candidate.id)) };
+  }).filter((clarification) => clarification.candidates.length);
+  for (const clarification of context.clarifications) {
+    if (clarification.candidates.some((candidate) => typeof candidate.id !== "string" || !candidate.id)) return { error: "澄清候选 ID 无效" };
   }
   return { context };
 }
@@ -112,7 +144,9 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
     const { agentId, environmentId } = await ensureBootstrap();
     // 每次请求独立 Session，避免跨访客共享对话历史（隐私隔离）。
     const session = await client.request("/api/v1/cloud/sessions", { method: "POST", body: { agent: agentId, environment_id: environmentId } });
-    const prompt = `上下文JSON：${JSON.stringify({ today: context.today, openTasks: context.openTasks, pendingEvents: context.pendingEvents, pendingRests: context.pendingRests, turns: context.turns })}\n用户原句：${text}\n只输出 {"reply","items"} 严格 JSON。`;
+    // 即使复用了旧 Agent，本次请求也携带完整协议，不依赖已存系统提示词。
+    const protocol = buildSystemPrompt({ ...context, text });
+    const prompt = `${protocol}\n\n【本次上下文 JSON】${JSON.stringify({ today: context.today, openTasks: context.openTasks, pendingEvents: context.pendingEvents, pendingRests: context.pendingRests, clarifications: context.clarifications, turns: context.turns })}\n用户原句：${text}\n只输出 {"reply","items"} 严格 JSON。`;
     await client.request(`/api/v1/cloud/sessions/${session.id}/events`, { method: "POST", body: { events: [{ type: "user.message", content: [{ type: "text", text: prompt }] }] } });
     const deadline = now() + EXTRACT_BUDGET_MS;
     while (now() < deadline) {
@@ -123,7 +157,7 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
         const txt = (last.content || []).filter((c) => c.type === "text").map((c) => c.text).join("");
         const parsed = tryParse(txt);
         if (parsed) {
-          const errors = validateExtractItems(parsed.items, context);
+          const errors = validateExtractItems(parsed.items, { ...context, text });
           if (errors.length) throw new CloudAgentsError("ai_bad_output", 502, "not_sent");
           return { ok: true, mode: "model", provider: "qoder-cloud-agents", reply: parsed.reply, items: sanitizeItems(parsed.items, { ...context, text }) };
         }
@@ -164,7 +198,10 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
       let result;
       if (useMock) {
         const m = mock.extract(text, context);
-        result = { ok: true, mode: "mock", provider: "local-mock", reply: m.reply, items: m.items };
+        const errors = validateExtractItems(m.items, { ...context, text });
+        result = errors.length
+          ? { ok: false, error: { code: "bad_output", message: "本地识别结果未通过校验，这条没有录入。可以重试。" } }
+          : { ok: true, mode: "mock", provider: "local-mock", reply: m.reply, items: sanitizeItems(m.items, { ...context, text }) };
       } else {
         try { result = await qcaExtract(text, context); }
         catch (e) { result = { ok: false, error: mapError(e) }; }

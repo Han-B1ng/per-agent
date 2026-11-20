@@ -50,8 +50,45 @@ export interface ChatMessage {
   role: "user" | "assistant";
   text: string;
   pending?: string[];
-  mode?: "model" | "mock";
+  mode?: "model" | "mock" | "local";
   failed?: { text: string; code: string };
+  clarifications?: Clarification[];
+  receipt?: AgentReceipt;
+}
+
+export type ClarificationKind = "task_target" | "record_target";
+export type ClarificationIntent = "complete_task" | "delete_task" | "confirm_event" | "deny_event" | "delete_event" | "confirm_rest" | "deny_rest" | "delete_rest";
+
+export interface ClarificationCandidate {
+  id: string;
+  label: string;
+  kind: "task" | "event" | "rest";
+  title?: string;
+  dueAt?: string;
+  quote?: string;
+  date?: string;
+}
+
+export interface Clarification {
+  id: string;
+  kind: ClarificationKind;
+  intent: ClarificationIntent;
+  question: string;
+  sourceText: string;
+  answerDate?: string;
+  candidates: ClarificationCandidate[];
+  status: "pending" | "resolved" | "cancelled";
+  createdAt: string;
+  resolvedAt?: string;
+  resolution?: { text: string; targetId?: string; op?: string };
+}
+
+export interface AgentReceipt {
+  status: "applied" | "pending" | "clarification" | "noop" | "empty";
+  changed: number;
+  pending: number;
+  noop: number;
+  clarifications: number;
 }
 
 export interface AuditEntry {
@@ -134,7 +171,8 @@ export type ExtractItem =
   | { op: "confirm_rest" | "deny_rest" | "delete_rest"; id: string; date?: string }
   | { op: "complete_task" | "delete_task"; id: string; doneAt?: string }
   | { op: "correct_event"; id: string; occurredAt?: string; quote?: string }
-  | { op: "correct_rest"; id: string; date?: string; quote?: string };
+  | { op: "correct_rest"; id: string; date?: string; quote?: string }
+  | { op: "request_clarification"; clarification: Omit<Clarification, "id" | "status" | "createdAt" | "resolvedAt" | "resolution"> };
 
 export interface ExtractContext {
   today: string;
@@ -143,6 +181,7 @@ export interface ExtractContext {
   openTasks: Array<Pick<TaskRecord, "id" | "title" | "dueAt" | "position">>;
   pendingEvents: Array<Pick<EventRecord, "id" | "quote" | "occurredAt" | "eventType" | "polarity" | "intensity">>;
   pendingRests: Array<Pick<RestRecord, "id" | "quote" | "date">>;
+  clarifications: Array<Pick<Clarification, "id" | "kind" | "intent" | "question" | "sourceText" | "candidates">>;
   turns: Array<{ role: "user" | "assistant"; content: string }>;
 }
 

@@ -110,6 +110,7 @@ test("function cache：按访客和完整有效上下文隔离", async () => {
 
 test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环境", async () => {
   const calls = [];
+  let eventPrompt = "";
   const fetchImpl = async (url, opts = {}) => {
     const u = new URL(url);
     const key = `${opts.method || "GET"} ${u.pathname}`;
@@ -120,7 +121,10 @@ test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环
     if (key === "GET /api/v1/cloud/agents") return json({ data: [{ id: "agent-old", name: "personal-economy-extractor", metadata: { app: "personal-economy" } }] });
     if (key === "GET /api/v1/cloud/environments") return json({ data: [{ id: "env-old", config: { type: "cloud" }, metadata: { app: "personal-economy" } }] });
     if (key === "POST /api/v1/cloud/sessions") return json({ id: "sess1" });
-    if (key === "POST /api/v1/cloud/sessions/sess1/events") return json({ id: "ev1" });
+    if (key === "POST /api/v1/cloud/sessions/sess1/events") {
+      eventPrompt = JSON.parse(opts.body).events[0].content[0].text;
+      return json({ id: "ev1" });
+    }
     if (key === "GET /api/v1/cloud/sessions/sess1/events") return json({ data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(qcaPayload) }] }] });
     return json({ error: "unexpected " + key }, 500);
   };
@@ -131,6 +135,11 @@ test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环
   assert.equal(j.mode, "model");
   assert.ok(calls.includes("GET /api/v1/cloud/agents"));
   assert.ok(!calls.includes("POST /api/v1/cloud/environments"));
+  assert.match(eventPrompt, /三种意图/);
+  assert.match(eventPrompt, /request_clarification/);
+  assert.match(eventPrompt, /clarifications/);
+  assert.match(eventPrompt, /禁止猜|不得猜|不猜/);
+  assert.match(eventPrompt, /用户原句：今天跑了五公里/);
 });
 
 test("function extract：单访客限流明确返回 rate_limited", async () => {
@@ -139,4 +148,39 @@ test("function extract：单访客限流明确返回 rate_limited", async () => 
   for (let i = 0; i < 31; i++) last = await h(post({ text: `今天跑了五公里 ${i}`, context: { today: TODAY } }));
   assert.equal(last.status, 429);
   assert.equal((await last.json()).error.code, "rate_limited");
+});
+test("function Agent 协议：缩短引文也从用户对应分句识别模糊日期", async () => {
+  const payload = { reply: "已计入指数", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-16", quote: "跑过五公里", tags: [], confidence: 0.9 } }] };
+  const routes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(payload) }] }] } };
+  const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(routes), logger: { info() {} } });
+  const response = await (await h(post({ text: "前阵子跑过五公里，今天读完一本书", context: { today: TODAY } }))).json();
+  assert.equal(response.ok, true);
+  assert.equal(response.items[0].event.quote, "跑过五公里");
+  assert.equal(response.items[0].event.confidence, 0.4);
+});
+
+test("function Agent 协议：合法澄清候选透传，越界候选整次拒绝", async () => {
+  const tasks = [
+    { id: "task_db", title: "数据库课设", dueAt: "2026-11-21", position: 3 },
+    { id: "task_algo", title: "算法课设", dueAt: "2026-11-24", position: 3 },
+  ];
+  const payload = {
+    reply: "有两个课设，你说的哪一个？",
+    items: [{ op: "request_clarification", clarification: { kind: "task_target", intent: "complete_task", question: "哪一个？", sourceText: "课设交了", candidates: [{ id: "task_db", label: "数据库课设" }, { id: "task_algo", label: "算法课设" }] } }],
+  };
+  const routes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(payload) }] }] } };
+  const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(routes), logger: { info() {} } });
+  const ok = await (await h(post({ text: "课设交了", context: { today: TODAY, openTasks: tasks } }))).json();
+  assert.equal(ok.ok, true);
+  assert.equal(ok.items[0].op, "request_clarification");
+  assert.equal(ok.items[0].clarification.candidates[0].id, "task_db");
+
+  const badPayload = { ...payload, items: [{ ...payload.items[0], clarification: { ...payload.items[0].clarification, candidates: [{ id: "task_unknown", label: "不存在" }] } }] };
+  const badRoutes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(badPayload) }] }] } };
+  const bad = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(badRoutes), logger: { info() {} } });
+  const rejected = await bad(post({ text: "课设交了", context: { today: TODAY, openTasks: tasks } }));
+  assert.equal(rejected.status, 502);
+  const body = await rejected.json();
+  assert.equal(body.error.code, "bad_output");
+  assert.equal(body.items, undefined);
 });
