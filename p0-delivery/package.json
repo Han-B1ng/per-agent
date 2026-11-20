@@ -10,10 +10,11 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json",
     "start": "node server/index.mjs",
-    "test": "node --test tests/engine.test.mjs tests/ledger.test.mjs tests/api.test.mjs tests/sites-function.test.mjs",
+    "test": "node --test tests/engine.test.mjs tests/ledger.test.mjs tests/api.test.mjs tests/sites-function.test.mjs tests/agent-protocol.test.mjs",
     "test:install": "playwright install chromium ffmpeg",
     "test:browser": "npm run build && node tests/browser/acceptance.mjs",
     "test:v02": "npm run build && node tests/browser/workspace-v02.mjs",
+    "test:agent": "npm run build && node tests/browser/agent-protocol.mjs",
     "test:visual": "npm run build && node tests/browser/vue-market-visual.mjs",
     "test:sample": "node tests/browser/observe-sample.mjs"
   },

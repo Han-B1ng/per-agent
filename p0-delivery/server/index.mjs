@@ -31,7 +31,7 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {
     return r.count > RATE_MAX;
   }
   function cacheKey(text, context, useMock) {
-    const effective = { today: context.today, clientId: context.clientId || "", openTasks: context.openTasks || [], pendingEvents: context.pendingEvents || [], pendingRests: context.pendingRests || [], turns: context.turns || [] };
+    const effective = { today: context.today, clientId: context.clientId || "", openTasks: context.openTasks || [], pendingEvents: context.pendingEvents || [], pendingRests: context.pendingRests || [], clarifications: context.clarifications || [], turns: context.turns || [] };
     return createHash("sha256").update(JSON.stringify({ text, context: effective, useMock })).digest("hex");
   }
   function cacheGet(key) {
@@ -76,6 +76,18 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {
     if (!text || text.length > 1500) return sendJson(res, 400, { ok: false, error: { code: "invalid_request", message: "消息为空或超过 1500 字。" } });
     const context = body.context && typeof body.context === "object" ? body.context : {};
     if (!context.today) context.today = new Date().toISOString().slice(0, 10);
+    for (const key of ["openTasks", "pendingEvents", "pendingRests", "turns", "clarifications"]) {
+      if (!Array.isArray(context[key])) context[key] = [];
+    }
+    context.openTasks = context.openTasks.slice(0, 200)
+      .filter((task) => task && typeof task.id === "string" && task.id && typeof task.title === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.dueAt || ""))
+      .map((task) => ({ ...task, position: Number.isInteger(task.position) && task.position >= 1 && task.position <= 5 ? task.position : 2 }));
+    context.pendingEvents = context.pendingEvents.slice(0, 200)
+      .filter((event) => event && typeof event.id === "string" && event.id && typeof event.quote === "string" && /^\d{4}-\d{2}-\d{2}$/.test(event.occurredAt || ""));
+    context.pendingRests = context.pendingRests.slice(0, 200)
+      .filter((rest) => rest && typeof rest.id === "string" && rest.id && typeof rest.quote === "string" && /^\d{4}-\d{2}-\d{2}$/.test(rest.date || ""));
+    context.turns = context.turns.slice(-10);
+    context.clarifications = context.clarifications.slice(0, 5).filter((clarification) => clarification && clarification.candidates && Array.isArray(clarification.candidates));
     const useMock = body.useMock === true || !hasKey;
 
     const key = cacheKey(text, context, useMock);
@@ -85,7 +97,10 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {
     let result;
     if (useMock) {
       const m = mock.extract(text, context);
-      result = { ok: true, mode: "mock", reply: m.reply, items: m.items };
+      const errors = model.validateExtractItems(m.items, { ...context, text });
+      result = errors.length
+        ? { ok: false, error: { code: "bad_output", message: "本地识别结果未通过校验，这条没有录入。可以重试。" } }
+        : { ok: true, mode: "mock", reply: m.reply, items: model.sanitizeItems(m.items, { ...context, text }) };
     } else {
       result = await model.extract(text, context, env);
     }
