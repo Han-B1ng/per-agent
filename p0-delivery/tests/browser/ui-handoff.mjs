@@ -118,24 +118,44 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await context.close();
 }
 
-/* 24b first send with no history */
+/* 24b effective send enters focus immediately */
 {
   const { context, page } = await newPage({ seed: seedLedger({ chatCount: 0 }) });
   await personal(page);
-  const before = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
-  await page.click("#entry");
-  await page.waitForTimeout(350);
-  await send(page, "今天跑了五公里。");
-  await page.waitForTimeout(450);
-  const sent = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), heading: Boolean(document.querySelector(".conversation-heading")), quick: Boolean(document.querySelector(".quick-actions")?.getBoundingClientRect().height), messages: document.querySelectorAll(".message").length, transcript: document.querySelector(".messages")?.textContent ?? "", chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
-  check("24 首次发送后展开消息与快捷提示", sent.conversation && sent.heading && sent.quick && sent.messages >= 2 && sent.transcript.includes("今天跑了五公里"), JSON.stringify(sent));
-  check("24 消息放得下时行情与输入框保持原位", sent.mode === "market" && before.input === sent.input && before.chart.y === sent.chart.y && before.chart.height === sent.chart.height, JSON.stringify({ before, sent }));
-  const aligned = await page.evaluate(() => { const c = document.querySelector(".conversation").getBoundingClientRect(); const i = document.querySelector(".composer").getBoundingClientRect(); return { cLeft: c.left, cWidth: c.width, iLeft: i.left, iWidth: i.width }; });
-  check("24 展开的对话与输入框左右对齐", Math.abs(aligned.cLeft - aligned.iLeft) < 1 && Math.abs(aligned.cWidth - aligned.iWidth) < 1, JSON.stringify(aligned));
+  const chartHeight = await page.evaluate(() => document.querySelector(".chart").offsetHeight);
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  await page.route("**/api/extract", async (route) => { await gate; await route.continue(); });
+  await page.fill("#entry", "今天跑了五公里。");
+  await page.click(".send");
+  await page.waitForTimeout(250);
+  const immediate = await page.evaluate(() => ({
+    mode: document.querySelector(".workspace").dataset.mode,
+    userMessage: [...document.querySelectorAll(".message")].some((message) => message.textContent.includes("今天跑了五公里")),
+    typing: Boolean(document.querySelector(".typing")),
+    conversation: Boolean(document.querySelector(".conversation.is-focus")?.getBoundingClientRect().height),
+    returnVisible: Boolean(document.querySelector("#view-toggle")?.getBoundingClientRect().width),
+    quoteVisible: Boolean(document.querySelector("#focus-quote")?.getBoundingClientRect().width),
+    cardBackground: getComputedStyle(document.querySelector(".market-card")).backgroundImage,
+    chartHeight: document.querySelector(".chart").offsetHeight,
+    quick: Boolean(document.querySelector(".quick-actions")?.getBoundingClientRect().height),
+    draft: document.querySelector("#entry").value,
+  }));
+  check("24 有效发送立即进入专注并显示用户消息/等待", immediate.mode === "focus" && immediate.userMessage && immediate.typing && immediate.conversation && immediate.returnVisible && immediate.quoteVisible && immediate.cardBackground === "none" && immediate.quick && immediate.draft === "" && Math.abs(immediate.chartHeight - chartHeight) < 1, JSON.stringify({ chartHeight, immediate }));
+  release();
+  await page.waitForTimeout(1200);
+  const replied = await page.evaluate(() => ({ messages: document.querySelectorAll(".message").length, typing: Boolean(document.querySelector(".typing")), transcript: document.querySelector(".messages")?.textContent ?? "" }));
+  check("24 响应到达后保留完整对话", replied.messages >= 2 && !replied.typing && replied.transcript.includes("今天跑了五公里"), JSON.stringify(replied));
+  await page.fill("#entry", "草稿保留");
+  const messages = await page.locator(".message").count();
+  await page.click("#view-toggle");
+  await page.waitForTimeout(800);
+  const returned = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), draft: document.querySelector("#entry").value, messages: document.querySelectorAll(".message").length, quick: Boolean(document.querySelector(".quick-actions")), chartBackground: getComputedStyle(document.querySelector(".market-card")).backgroundImage }));
+  check("24 返回行情收起聊天并保留历史/草稿", returned.mode === "market" && returned.collapsed && returned.draft === "草稿保留" && returned.messages === messages && !returned.quick && returned.chartBackground !== "none", JSON.stringify({ returned, messages }));
   await context.close();
 }
 
-/* 720 short history */
+/* 720 Enter sends into focus too */
 {
   const { context, page } = await newPage({ seed: seedLedger({ chatCount: 0 }), width: 1440, height: 720 });
   await personal(page);
@@ -145,25 +165,29 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   const clicked = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode, focused: document.activeElement?.id, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")) }));
   check("720 点击输入框只聚焦不展开聊天", clicked.mode === "market" && clicked.focused === "entry" && clicked.collapsed && before.input === clicked.input && before.chart.height === clicked.chart.height, JSON.stringify({ before, clicked }));
   await send(page, "今天跑了五公里。");
-  await page.waitForTimeout(450);
-  const sent = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), messages: document.querySelectorAll(".message").length, chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
-  check("720 短消息放得下时保持行情", sent.mode === "market" && sent.conversation && sent.messages >= 2 && before.input === sent.input && before.chart.height === sent.chart.height, JSON.stringify({ before, sent }));
+  const sent = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation.is-focus")?.getBoundingClientRect().height), quote: Boolean(document.querySelector("#focus-quote")?.getBoundingClientRect().width), returnVisible: Boolean(document.querySelector("#view-toggle")?.getBoundingClientRect().width), messages: document.querySelectorAll(".message").length, quick: Boolean(document.querySelector(".quick-actions")?.getBoundingClientRect().height) }));
+  check("720 回车发送直接进入专注", sent.mode === "focus" && sent.conversation && sent.quote && sent.returnVisible && sent.messages >= 2 && sent.quick, JSON.stringify(sent));
   await context.close();
 }
 
-/* Sample chat stays; first write switches */
+/* Sample chat enters focus without switching data */
 {
   const { context, page } = await newPage();
-  const sample = await page.evaluate(() => ({ view: document.querySelector("#view-sample").getAttribute("aria-pressed"), tag: document.querySelector("#data-tag").textContent, quote: document.querySelector("#quote-value").textContent, candles: Boolean(document.querySelector("#candles")) }));
+  const sample = await page.evaluate(() => ({ view: document.querySelector("#view-sample").getAttribute("aria-pressed"), quote: document.querySelector("#quote-value").textContent, candles: Boolean(document.querySelector("#candles")) }));
   await page.click("#entry");
   await send(page, "你好");
   await page.waitForTimeout(300);
-  const chatOnly = await page.evaluate(() => ({ view: document.querySelector("#view-sample").getAttribute("aria-pressed"), personal: document.querySelector("#view-personal").getAttribute("aria-pressed"), tag: document.querySelector("#data-tag").textContent, quote: document.querySelector("#quote-value").textContent, candles: Boolean(document.querySelector("#candles")), conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), events: JSON.parse(localStorage.getItem("pe.personal.v2") || "{}").events?.length ?? 0 }));
-  check("样例闲聊保留当前行情", sample.view === "true" && chatOnly.view === "true" && chatOnly.tag.includes("样例") && chatOnly.quote === sample.quote && chatOnly.candles && chatOnly.events === 0 && chatOnly.conversation, JSON.stringify({ sample, chatOnly }));
+  const chatOnly = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, view: document.querySelector("#view-sample").getAttribute("aria-pressed"), personal: document.querySelector("#view-personal").getAttribute("aria-pressed"), focusQuote: document.querySelector("#focus-quote")?.textContent ?? "", conversation: Boolean(document.querySelector(".conversation.is-focus")?.getBoundingClientRect().height), transcript: document.querySelector(".messages")?.textContent ?? "", events: JSON.parse(localStorage.getItem("pe.personal.v2") || "{}").events?.length ?? 0 }));
+  check("样例闲聊保持样例数据并进入专注", chatOnly.mode === "focus" && sample.view === "true" && chatOnly.view === "true" && chatOnly.personal === "false" && chatOnly.focusQuote === sample.quote && chatOnly.events === 0 && chatOnly.conversation && chatOnly.transcript.includes("你好"), JSON.stringify({ sample, chatOnly }));
+  await page.click("#view-toggle");
+  await page.waitForTimeout(700);
+  const returned = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, view: document.querySelector("#view-sample").getAttribute("aria-pressed"), quote: document.querySelector("#quote-value").textContent, candles: Boolean(document.querySelector("#candles")), collapsed: Boolean(document.querySelector(".conversation.is-collapsed")) }));
+  check("返回后样例行情保留", returned.mode === "market" && returned.view === "true" && returned.quote === sample.quote && returned.candles && returned.collapsed, JSON.stringify(returned));
+  await page.click("#entry");
   await send(page, "今天跑了五公里。");
   await page.waitForTimeout(300);
-  const wrote = await page.evaluate(() => ({ personal: document.querySelector("#view-personal").getAttribute("aria-pressed"), tag: document.querySelector("#data-tag").textContent, candles: Boolean(document.querySelector("#candles")), events: JSON.parse(localStorage.getItem("pe.personal.v2") || "{}").events?.length ?? 0 }));
-  check("个人记录写入后才切换", wrote.personal === "true" && wrote.events > 0 && wrote.candles, JSON.stringify(wrote));
+  const wrote = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, personal: document.querySelector("#view-personal").getAttribute("aria-pressed"), quote: document.querySelector("#focus-quote")?.textContent ?? "", events: JSON.parse(localStorage.getItem("pe.personal.v2") || "{}").events?.length ?? 0 }));
+  check("个人记录写入后才切换", wrote.mode === "focus" && wrote.personal === "true" && wrote.events > 0 && wrote.quote !== sample.quote, JSON.stringify(wrote));
   await context.close();
 }
 
@@ -174,12 +198,8 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   const chartHeightBefore = await page.evaluate(() => document.querySelector(".chart").offsetHeight);
   await send(page, "今天跑了五公里。");
   await page.waitForTimeout(500);
-  if ((await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) !== "focus") {
-    await send(page, "今天完成了数据库课设。");
-    await page.waitForTimeout(500);
-  }
   await shot(page, "02-conversation-focus.png");
-  check("02 消息实际溢出进入专注并保留顶部指数", (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus" && (await page.locator("#focus-quote").isVisible()) && (await page.locator("#view-toggle").isVisible()), "");
+  check("02 有效发送进入专注并保留顶部指数", (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus" && (await page.locator("#focus-quote").isVisible()) && (await page.locator("#view-toggle").isVisible()), "");
   const focusStyle = await page.evaluate(() => {
     const market = getComputedStyle(document.querySelector(".market"));
     const chartEl = document.querySelector(".chart");
@@ -196,7 +216,7 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   });
   const focusChromeGone = focusStyle.cardBackground === "none" && (focusStyle.cardBorder === "rgba(0, 0, 0, 0)" || focusStyle.cardBorder === "transparent") && parseFloat(focusStyle.toolbarOpacity) === 0 && parseFloat(focusStyle.summaryOpacity) === 0;
   const focusChartOnly = focusStyle.chartTransform.includes("1.24") && parseFloat(focusStyle.chartOpacity) < 0.2 && focusStyle.chartFilter.includes("blur");
-  check("02 溢出只放大K线且卡片/工具栏退场", focusChartOnly && focusChromeGone && parseFloat(focusStyle.marketOpacity) > 0.9 && !focusStyle.marketTransform.includes("1.24") && !focusStyle.marketFilter.includes("blur"), JSON.stringify(focusStyle));
+  check("02 专注只放大K线且卡片/工具栏退场", focusChartOnly && focusChromeGone && parseFloat(focusStyle.marketOpacity) > 0.9 && !focusStyle.marketTransform.includes("1.24") && !focusStyle.marketFilter.includes("blur"), JSON.stringify(focusStyle));
   check("02 专注不改变K线绘图区高度", Math.abs(focusStyle.chartHeight - chartHeightBefore) < 1, `${chartHeightBefore} -> ${focusStyle.chartHeight}`);
   const focusAlign = await page.evaluate(() => { const c = document.querySelector(".conversation").getBoundingClientRect(); const i = document.querySelector(".composer").getBoundingClientRect(); return { cLeft: c.left, cWidth: c.width, iLeft: i.left, iWidth: i.width }; });
   check("02 专注对话与输入框左右对齐", Math.abs(focusAlign.cLeft - focusAlign.iLeft) < 1 && Math.abs(focusAlign.cWidth - focusAlign.iWidth) < 1, JSON.stringify(focusAlign));
@@ -212,69 +232,62 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await context.close();
 }
 
-/* Focus sequence video: click → short send → overflow → return */
+/* Focus sequence video: focus → send → direct focus → return */
 {
   const videoDir = path.join(ROOT, "dist", "focus-video");
   await mkdir(videoDir, { recursive: true });
   const { context, page } = await newPage({ seed: seedLedger({ chatCount: 0 }), width: 1440, height: 900, video: videoDir });
   await personal(page);
   await page.waitForTimeout(400);
+  const chartHeight = await page.evaluate(() => document.querySelector(".chart").offsetHeight);
+  await page.route("**/api/extract", async (route) => { await new Promise((resolve) => setTimeout(resolve, 700)); await route.continue(); });
   await page.click("#entry");
   await page.waitForTimeout(500);
   const clicked = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
   check("顺序：点击输入框只聚焦", clicked.mode === "market" && clicked.collapsed && clicked.focused === "entry", JSON.stringify(clicked));
-  await send(page, "今天读完了一章专业书。");
-  await page.waitForTimeout(600);
-  const first = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), messages: document.querySelectorAll(".message").length, transcript: document.querySelector(".messages")?.textContent ?? "" }));
-  check("顺序：首次发送后展开消息且行情保持", first.mode === "market" && first.conversation && first.messages >= 2 && first.transcript.includes("今天读完了一章专业书"), JSON.stringify(first));
-  const chartHeightBefore = await page.evaluate(() => document.querySelector(".chart").offsetHeight);
-  for (const line of ["晚上去操场散步了。", "睡前读书半小时。", "早上把书桌整理了一下。"]) {
-    if ((await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus") break;
-    await send(page, line);
-    await page.waitForTimeout(700);
-  }
-  const overflow = await page.evaluate(() => {
+  await page.fill("#entry", "今天读完了一章专业书。");
+  await page.click(".send");
+  await page.waitForTimeout(250);
+  const immediate = await page.evaluate(() => ({
+    mode: document.querySelector(".workspace").dataset.mode,
+    userMessage: [...document.querySelectorAll(".message")].some((message) => message.textContent.includes("今天读完了一章专业书")),
+    typing: Boolean(document.querySelector(".typing")),
+    conversation: Boolean(document.querySelector(".conversation.is-focus")?.getBoundingClientRect().height),
+    returnVisible: Boolean(document.querySelector("#view-toggle")?.getBoundingClientRect().width),
+    quoteVisible: Boolean(document.querySelector("#focus-quote")?.getBoundingClientRect().width),
+    change: document.querySelector("#focus-change")?.textContent ?? "",
+    cardBackground: getComputedStyle(document.querySelector(".market-card")).backgroundImage,
+    chartHeight: document.querySelector(".chart").offsetHeight,
+    quick: Boolean(document.querySelector(".quick-actions")?.getBoundingClientRect().height),
+  }));
+  check("顺序：发送后直接进入专注并显示用户消息/等待", immediate.mode === "focus" && immediate.userMessage && immediate.typing && immediate.conversation && immediate.returnVisible && immediate.quoteVisible && immediate.change.endsWith("%") && immediate.cardBackground === "none" && immediate.quick && Math.abs(immediate.chartHeight - chartHeight) < 1, JSON.stringify({ chartHeight, immediate }));
+  await page.waitForTimeout(1300);
+  const replied = await page.evaluate(() => ({ messages: document.querySelectorAll(".message").length, typing: Boolean(document.querySelector(".typing")), transcript: document.querySelector(".messages")?.textContent ?? "" }));
+  check("顺序：等待结束后对话完整保留", replied.messages >= 2 && !replied.typing && replied.transcript.includes("今天读完了一章专业书"), JSON.stringify(replied));
+  const focusStyle = await page.evaluate(() => {
     const market = getComputedStyle(document.querySelector(".market"));
     const chartEl = document.querySelector(".chart");
     const chart = getComputedStyle(chartEl);
     const card = getComputedStyle(document.querySelector(".market-card"));
     const toolbar = getComputedStyle(document.querySelector(".chart-toolbar"));
     const summary = getComputedStyle(document.querySelector(".market-summary"));
-    const scroll = document.querySelector(".message-scroll");
-    const composer = document.querySelector(".composer").getBoundingClientRect();
     return {
-      mode: document.querySelector(".workspace").dataset.mode,
-      quoteVisible: Boolean(document.querySelector("#focus-quote")?.getBoundingClientRect().width),
-      change: document.querySelector("#focus-change")?.textContent ?? "",
-      returnVisible: Boolean(document.querySelector("#view-toggle")?.getBoundingClientRect().width),
       marketTransform: market.transform, marketOpacity: market.opacity, marketFilter: market.filter,
       chartTransform: chart.transform, chartOpacity: chart.opacity, chartFilter: chart.filter, chartHeight: chartEl.offsetHeight,
       cardBackground: card.backgroundImage, cardBorder: card.borderTopColor,
       toolbarOpacity: toolbar.opacity, summaryOpacity: summary.opacity,
-      animation: chart.animationName,
-      scrollOverflow: getComputedStyle(scroll).overflowY,
-      lastBottom: [...document.querySelectorAll(".message")].pop()?.getBoundingClientRect().bottom ?? 0,
-      composerTop: composer.top,
-      composerBottom: composer.bottom,
-      vh: innerHeight,
     };
   });
-  const overflowChromeGone = overflow.cardBackground === "none" && (overflow.cardBorder === "rgba(0, 0, 0, 0)" || overflow.cardBorder === "transparent") && parseFloat(overflow.toolbarOpacity) === 0 && parseFloat(overflow.summaryOpacity) === 0;
-  const overflowChartOnly = overflow.chartTransform.includes("1.24") && parseFloat(overflow.chartOpacity) < 0.2 && overflow.chartFilter.includes("blur");
-  check("顺序：消息实际溢出才收起行情", overflow.mode === "focus" && overflow.quoteVisible && overflow.change.endsWith("%") && overflow.returnVisible && overflowChartOnly && overflowChromeGone && parseFloat(overflow.marketOpacity) > 0.9 && !overflow.marketTransform.includes("1.24") && !overflow.marketFilter.includes("blur") && overflow.animation === "none", JSON.stringify(overflow));
-  check("顺序：专注不改变K线绘图区高度", Math.abs(overflow.chartHeight - chartHeightBefore) < 1, `${chartHeightBefore} -> ${overflow.chartHeight}`);
-  check("顺序：溢出后消息区可独立滚动且输入框留底", overflow.scrollOverflow === "auto" && overflow.lastBottom <= overflow.composerTop - 1 && overflow.composerBottom <= overflow.vh, JSON.stringify(overflow));
-  await page.waitForTimeout(700);
-  const still = await page.evaluate(() => getComputedStyle(document.querySelector(".chart")).transform);
-  await page.waitForTimeout(300);
-  const stillLater = await page.evaluate(() => getComputedStyle(document.querySelector(".chart")).transform);
-  check("顺序：背景过渡结束后静止", still === stillLater && overflow.animation === "none", `${still} == ${stillLater}`);
+  const chromeGone = focusStyle.cardBackground === "none" && (focusStyle.cardBorder === "rgba(0, 0, 0, 0)" || focusStyle.cardBorder === "transparent") && parseFloat(focusStyle.toolbarOpacity) === 0 && parseFloat(focusStyle.summaryOpacity) === 0;
+  const chartOnly = focusStyle.chartTransform.includes("1.24") && parseFloat(focusStyle.chartOpacity) < 0.2 && focusStyle.chartFilter.includes("blur");
+  check("顺序：专注只动画K线且卡片/工具栏退场", chartOnly && chromeGone && parseFloat(focusStyle.marketOpacity) > 0.9 && !focusStyle.marketTransform.includes("1.24") && !focusStyle.marketFilter.includes("blur"), JSON.stringify(focusStyle));
+  check("顺序：专注不改变K线绘图区高度", Math.abs(focusStyle.chartHeight - chartHeight) < 1, `${chartHeight} -> ${focusStyle.chartHeight}`);
   await page.fill("#entry", "草稿保留");
   const messages = await page.locator(".message").count();
   await page.click("#view-toggle");
   await page.waitForTimeout(800);
-  const returned = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), draft: document.querySelector("#entry").value, messages: document.querySelectorAll(".message").length }));
-  check("顺序：返回行情保留消息与草稿", returned.mode === "market" && returned.collapsed && returned.draft === "草稿保留" && returned.messages === messages, JSON.stringify({ returned, messages }));
+  const returned = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), draft: document.querySelector("#entry").value, messages: document.querySelectorAll(".message").length, quick: Boolean(document.querySelector(".quick-actions")), chartBackground: getComputedStyle(document.querySelector(".market-card")).backgroundImage }));
+  check("顺序：返回行情收起聊天并保留历史/草稿", returned.mode === "market" && returned.collapsed && returned.draft === "草稿保留" && returned.messages === messages && !returned.quick && returned.chartBackground !== "none", JSON.stringify({ returned, messages }));
   const video = page.video();
   await context.close();
   if (video) {

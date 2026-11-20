@@ -95,7 +95,7 @@ for (const [width, height, scale] of [[1440, 900, 2], [1440, 720, 1], [390, 844,
   });
   const chromeGone = focusState.cardBackground === "none" && (focusState.cardBorder === "rgba(0, 0, 0, 0)" || focusState.cardBorder === "transparent") && parseFloat(focusState.toolbarOpacity) === 0 && parseFloat(focusState.summaryOpacity) === 0;
   const chartOnly = focusState.chartTransform.includes("1.24") && parseFloat(focusState.chartOpacity) < 0.2 && focusState.chartFilter.includes("blur");
-  check(`视觉[${tag}] 溢出只放大K线且卡片退场`, focusState.mode === "focus" && focusState.scrollable && focusState.composerBottom <= focusState.vh && chartOnly && chromeGone && parseFloat(focusState.marketOpacity) > 0.9 && !focusState.marketTransform.includes("1.24") && !focusState.marketFilter.includes("blur"), JSON.stringify(focusState));
+  check(`视觉[${tag}] 发送后只放大K线且卡片退场`, focusState.mode === "focus" && focusState.scrollable && focusState.composerBottom <= focusState.vh && chartOnly && chromeGone && parseFloat(focusState.marketOpacity) > 0.9 && !focusState.marketTransform.includes("1.24") && !focusState.marketFilter.includes("blur"), JSON.stringify(focusState));
   check(`视觉[${tag}] 专注不改变K线绘图区高度`, Math.abs(focusState.chartHeight - chartHeightBefore) < 1, `${chartHeightBefore} -> ${focusState.chartHeight}`);
   await shot(page, `vue-market-${tag}-focus`);
   if (await page.locator("#view-toggle").isVisible()) { await page.click("#view-toggle"); await page.waitForTimeout(900); }

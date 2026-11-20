@@ -90,13 +90,13 @@ for (const [w, h] of [[1440, 900], [1440, 720]]) {
   const clickOnly = await page.evaluate(() => ({ collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
   check(`A[${tag}] 点击输入框只聚焦不展开聊天`, clickOnly.collapsed && clickOnly.focused === "entry", JSON.stringify(clickOnly));
   await send(page, "今天跑了五公里。");
-  const shortState = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, content: document.querySelector(".conversation")?.scrollHeight ?? 0, available: document.querySelector(".stage").clientHeight - document.querySelector(".market").offsetHeight - 12 }));
-  check(`A[${tag}] 单条消息按实际空间决定是否专注`, shortState.mode === (shortState.content > shortState.available + 4 ? "focus" : "market"), JSON.stringify(shortState));
+  const sent = await marketState(page);
+  check(`A[${tag}] 有效发送直接进入专注`, sent.mode === "focus" && sent.chartTransform.includes("1.24") && (await page.locator("#focus-quote").isVisible()) && (await page.locator("#view-toggle").isVisible()), JSON.stringify(sent));
   for (const t of ["今天完成了数据库课设。", "今天有点累，想休息一天。", "晚上和室友吃了火锅。", "回宿舍收尾了作业。", "睡前看了半小时书。", "早上小跑到教室。", "课间问懂了上次的问题。", "下午又跑了三公里。"]) await send(page, t);
   const s2 = await marketState(page);
   const chromeGone = s2.cardBackground === "none" && (s2.cardBorder === "rgba(0, 0, 0, 0)" || s2.cardBorder === "transparent") && parseFloat(s2.toolbarOpacity) === 0 && parseFloat(s2.summaryOpacity) === 0;
   const chartOnly = s2.chartTransform.includes("1.24") && parseFloat(s2.chartOpacity) < 0.2 && s2.chartFilter.includes("blur");
-  check(`A[${tag}] 溢出只放大K线且卡片/工具栏退场`, s2.mode === "focus" && chartOnly && chromeGone && parseFloat(s2.opacity) > 0.9 && !s2.transform.includes("1.24") && !s2.filter.includes("blur"), JSON.stringify(s2));
+  check(`A[${tag}] 专注只放大K线且卡片/工具栏退场`, s2.mode === "focus" && chartOnly && chromeGone && parseFloat(s2.opacity) > 0.9 && !s2.transform.includes("1.24") && !s2.filter.includes("blur"), JSON.stringify(s2));
   check(`A[${tag}] 专注不改变K线绘图区高度`, Math.abs(s2.chartHeight - s0.chartHeight) < 1, `${s0.chartHeight} -> ${s2.chartHeight}`);
   const sc = await page.evaluate(() => {
     const s = document.querySelector(".message-scroll"); const c = document.querySelector(".composer").getBoundingClientRect();
