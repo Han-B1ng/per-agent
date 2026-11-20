@@ -49,9 +49,23 @@ async function closeVideo(context, page, dest) {
 }
 const send = async (page, text) => { await page.fill("#entry", text); await page.press("#entry", "Enter"); await page.waitForTimeout(900); };
 const marketState = (page) => page.evaluate(() => {
-  const cs = getComputedStyle(document.querySelector(".market"));
-  const r = document.querySelector(".market").getBoundingClientRect();
-  return { mode: document.querySelector(".workspace").dataset.mode, transform: cs.transform, opacity: cs.opacity, filter: cs.filter, w: r.width, h: r.height, x: r.x, y: r.y };
+  const market = document.querySelector(".market");
+  const chart = document.querySelector(".chart");
+  const card = document.querySelector(".market-card");
+  const toolbar = document.querySelector(".chart-toolbar");
+  const summary = document.querySelector(".market-summary");
+  const ms = getComputedStyle(market);
+  const cs = getComputedStyle(chart);
+  const ks = getComputedStyle(card);
+  const r = market.getBoundingClientRect();
+  return {
+    mode: document.querySelector(".workspace").dataset.mode,
+    transform: ms.transform, opacity: ms.opacity, filter: ms.filter,
+    w: r.width, h: r.height, x: r.x, y: r.y,
+    chartTransform: cs.transform, chartOpacity: cs.opacity, chartFilter: cs.filter, chartHeight: chart.offsetHeight,
+    cardBackground: ks.backgroundImage, cardBorder: ks.borderTopColor,
+    toolbarOpacity: getComputedStyle(toolbar).opacity, summaryOpacity: getComputedStyle(summary).opacity,
+  };
 });
 const openLastCandle = async (page) => {
   // focus 模式下行情为背景（不可点），先返回行情
@@ -80,7 +94,10 @@ for (const [w, h] of [[1440, 900], [1440, 720]]) {
   check(`A[${tag}] 单条消息按实际空间决定是否专注`, shortState.mode === (shortState.content > shortState.available + 4 ? "focus" : "market"), JSON.stringify(shortState));
   for (const t of ["今天完成了数据库课设。", "今天有点累，想休息一天。", "晚上和室友吃了火锅。", "回宿舍收尾了作业。", "睡前看了半小时书。", "早上小跑到教室。", "课间问懂了上次的问题。", "下午又跑了三公里。"]) await send(page, t);
   const s2 = await marketState(page);
-  check(`A[${tag}] 溢出后focus放大渐隐`, s2.mode === "focus" && s2.transform.includes("1.24") && parseFloat(s2.opacity) < 0.2 && s2.filter.includes("blur"), `${s2.transform} ${s2.opacity} ${s2.filter}`);
+  const chromeGone = s2.cardBackground === "none" && (s2.cardBorder === "rgba(0, 0, 0, 0)" || s2.cardBorder === "transparent") && parseFloat(s2.toolbarOpacity) === 0 && parseFloat(s2.summaryOpacity) === 0;
+  const chartOnly = s2.chartTransform.includes("1.24") && parseFloat(s2.chartOpacity) < 0.2 && s2.chartFilter.includes("blur");
+  check(`A[${tag}] 溢出只放大K线且卡片/工具栏退场`, s2.mode === "focus" && chartOnly && chromeGone && parseFloat(s2.opacity) > 0.9 && !s2.transform.includes("1.24") && !s2.filter.includes("blur"), JSON.stringify(s2));
+  check(`A[${tag}] 专注不改变K线绘图区高度`, Math.abs(s2.chartHeight - s0.chartHeight) < 1, `${s0.chartHeight} -> ${s2.chartHeight}`);
   const sc = await page.evaluate(() => {
     const s = document.querySelector(".message-scroll"); const c = document.querySelector(".composer").getBoundingClientRect();
     return { scrollable: s.scrollHeight > s.clientHeight, atBottom: s.scrollTop + s.clientHeight >= s.scrollHeight - 2, cb: c.bottom, vh: innerHeight };
@@ -186,6 +203,7 @@ async function page0Shift(n) {
   const app = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(quotaStub) } }));
   const { context, page } = await newPage(browser, { url: base(app), video: path.join(ROOT, "assets/videos/p0-degrade") });
   check("D health=model", (await page.textContent("#model-status-text")).includes("模型"), await page.textContent("#model-status-text"));
+  await page.click("#view-personal"); await page.waitForTimeout(300);
   await send(page, "今天跑了五公里");
   const failedTag = await page.evaluate(() => !!document.querySelector(".msg-card.failed .fail-tag"));
   const q = await quote(page);

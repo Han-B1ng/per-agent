@@ -292,6 +292,7 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
 {
   const { context, page } = await newPage();
   const day = await today(page);
+  await page.click("#view-personal"); await page.waitForTimeout(300);
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   await page.route("**/api/extract", async (route) => {
