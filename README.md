@@ -42,11 +42,12 @@ npm start
 
 | 目录 | 职责 |
 | --- | --- |
-| [`p0-delivery/frontend/`](p0-delivery/frontend/) | 页面、组件、样式和应用状态 |
+| [`p0-delivery/frontend/`](p0-delivery/frontend/) | 页面、组件、样式与应用状态（`useLedger` / `useChat` / `useNavigation` 组装） |
 | [`p0-delivery/web/`](p0-delivery/web/) | 账本、存储迁移、计分引擎、图表绘制与 Agent 协议工具 |
 | [`p0-delivery/weekly-review/`](p0-delivery/weekly-review/) | 周复盘的数据派生和展示 |
 | [`p0-delivery/server/`](p0-delivery/server/) | 本地静态服务、Mock、模型代理与协议校验 |
-| [`p0-delivery/functions/`](p0-delivery/functions/) | Qoder Sites Function 和 Cloud Agents 调用 |
+| [`p0-delivery/functions/`](p0-delivery/functions/) | Qoder Sites Function 源码；构建时与 `web/` 共享 core 组装成自包含包 |
+| [`p0-delivery/scripts/`](p0-delivery/scripts/) | 构建与打包脚本（含 Function 包生成） |
 | [`p0-delivery/tests/`](p0-delivery/tests/) | 引擎、账本、接口和浏览器回归 |
 | [`docs/`](docs/) | 产品设计、算法规格、决策记录与 [Agent 交流协议](docs/design/agent-communication-protocol-v0.1.md) |
 
@@ -62,7 +63,7 @@ npm start
 node --env-file=.env server/index.mjs
 ```
 
-部署到 Qoder Sites 时，以 `p0-delivery/` 为项目目录，运行 `npm run build`。静态资源位于 `dist/`，Function 入口为 [`functions/index.ts`](p0-delivery/functions/index.ts)。由 Sites 的 `qoder` 后端在服务端提供 `QODER_PAT`。模型凭据应保存在服务端环境中。
+部署到 Qoder Sites 时，以 `p0-delivery/` 为项目目录，运行 `npm run build`。静态资源位于 `dist/`；Function 包生成到 `dist-functions/`，入口为 `dist-functions/index.ts`。Sites 的 Function 目录应使用 `dist-functions/`（由 `scripts/build-functions.mjs` 从 `functions/` 与 `web/` 组装，共享 core 只维护 `web/` 一份）。由 Sites 的 `qoder` 后端在服务端提供 `QODER_PAT`，模型凭据应保存在服务端环境中。本地 Deno 调试使用 `npm run dev:function`（先构建生成包，再需本机 `deno`）。
 
 ## 测试
 
@@ -76,10 +77,12 @@ npm run test:install
 
 | 命令 | 覆盖范围 |
 | --- | --- |
+| `npm test` | 引擎、账本、API、协议、ID 与生成的 Function 包（含独立目录 Stub） |
 | `npm run test:browser` | 核心流程、待确认、持久化和模型降级 |
 | `npm run test:v02` | 三个页面之间的账本联动 |
 | `npm run test:agent` | 三意图、澄清候选、逐项日期、回执与 Sites 复用协议 |
-| `npm run test:ui` | 行情三态、目标/记录/设置画板与核心流程；输出 `docs/ui-handoff/` 证据 |
+| `npm run test:functions` | 独立临时目录加载生成的 Function 包，stub QCA，校验依赖闭环 |
+| `npm run test:ui` | 行情两态、目标/记录/设置画板与核心流程；输出 `docs/ui-handoff/` 证据 |
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |
 | `npm run test:sample` | 与现有桌面交互样板的对照 |
 
