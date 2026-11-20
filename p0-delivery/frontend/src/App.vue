@@ -12,7 +12,7 @@ import CompletionConfirm from "./components/CompletionConfirm.vue";
 
 const ws = useWorkspace();
 provide("workspace", ws);
-const { page, focusMode, navOpen, drawer, refreshToday, closeDrawer, checkHealth } = ws;
+const { page, focusMode, navOpen, drawer, refreshToday, closeDrawer, checkHealth, persistError, dismissPersistError } = ws;
 
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== "Escape") return;
@@ -40,6 +40,10 @@ onBeforeUnmount(() => {
 <template>
   <div class="workspace" :data-mode="focusMode ? 'focus' : 'market'" :data-page="page" :data-nav-open="navOpen">
     <div v-if="navOpen" class="nav-scrim" @click="navOpen = false"></div>
+    <div v-if="persistError" class="persist-banner" role="alert" data-testid="persist-error">
+      <span>{{ persistError }}</span>
+      <button type="button" @click="dismissPersistError">知道了</button>
+    </div>
     <AppSidebar />
     <div class="app-shell">
       <PageHeader />

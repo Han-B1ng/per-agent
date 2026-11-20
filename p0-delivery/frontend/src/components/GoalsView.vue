@@ -21,7 +21,8 @@ function openForm() {
   openGoalForm();
 }
 function submit() {
-  addGoal(title.value, dueAt.value, position.value);
+  const write = addGoal(title.value, dueAt.value, position.value);
+  if (!write?.applied || !write.saved) return;
   title.value = "";
   dueAt.value = "";
   position.value = 3;

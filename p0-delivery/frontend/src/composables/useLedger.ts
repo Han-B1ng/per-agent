@@ -1,8 +1,12 @@
 import { computed, reactive, ref } from "vue";
 import {
-  applyItems, buildSampleRecords, clearPersonal, computeAll, getGoals, getTimeline, loadPersonal, savePersonal, shiftDate, SAMPLE_META,
+  applyItems, buildSampleRecords, clearPersonal, computeAll, getGoals, getTimeline, loadPersonal, parsePersonalBackup, savePersonal, shiftDate, SAMPLE_META,
 } from "../core";
-import type { DataView, ExtractItem, GoalView, LedgerRecords, PersonalLedger, RecordFilters, TimelineRow, WriteResult } from "../types";
+import type {
+  BackupParseResult, CommitResult, DataView, ExtractItem, GoalView, LedgerRecords, PersonalLedger, RecordFilters, RestoreResult, TimelineRow,
+} from "../types";
+
+const NOT_SAVED_MESSAGE = "未保存：浏览器写入失败，本次改动没有写入本机。请重试。";
 
 function localToday(): string {
   const d = new Date();
@@ -16,6 +20,7 @@ export function useLedger() {
   const view = ref<DataView>("sample");
   const filters = reactive<RecordFilters>({ from: "", to: "", keyword: "", type: "all", taskId: "", includeDeleted: false });
   const recordTaskId = ref("");
+  const persistError = ref("");
   let ledgerWrites = 0;
 
   const records = computed<LedgerRecords>(() => (view.value === "sample" ? sample.value : personal.value));
@@ -33,15 +38,40 @@ export function useLedger() {
     sample.value = buildSampleRecords(next);
     return true;
   }
-  function persist() {
-    savePersonal(personal.value);
+  function persist(): boolean {
+    const saved = savePersonal(personal.value);
+    persistError.value = saved ? "" : NOT_SAVED_MESSAGE;
+    return saved;
   }
-  function commit(items: ExtractItem[]): WriteResult {
+  function dismissPersistError() {
+    persistError.value = "";
+  }
+  function commit(items: ExtractItem[]): CommitResult {
     refreshToday();
+    const before = JSON.parse(JSON.stringify(personal.value)) as PersonalLedger;
     const write = applyItems(personal.value, items, { today: today.value });
-    if (write.applied && (write.changed > 0 || write.newPending.length > 0)) ledgerWrites += 1;
-    persist();
-    return write;
+    if (!write.applied) return { ...write, saved: true };
+    if (!savePersonal(personal.value)) {
+      personal.value = before;
+      persistError.value = NOT_SAVED_MESSAGE;
+      return { newPending: [], changed: 0, errors: [NOT_SAVED_MESSAGE], applied: false, saved: false };
+    }
+    persistError.value = "";
+    if (write.changed > 0 || write.newPending.length > 0) ledgerWrites += 1;
+    return { ...write, saved: true };
+  }
+  function inspectBackup(text: string): BackupParseResult {
+    return parsePersonalBackup(text);
+  }
+  function restoreBackup(next: PersonalLedger): RestoreResult {
+    if (!savePersonal(next)) {
+      return { ok: false, code: "storage_failed", message: "浏览器写入失败：原账本未改动，请检查存储空间或隐私模式后重试。" };
+    }
+    personal.value = next;
+    view.value = "personal";
+    clearFilters();
+    persistError.value = "";
+    return { ok: true };
   }
   function setViewData(next: DataView) {
     view.value = next;
@@ -89,9 +119,9 @@ export function useLedger() {
     commit([item]);
   }
   function addGoal(title: string, dueAt: string, position: number) {
-    if (!title.trim() || !dueAt) return;
+    if (!title.trim() || !dueAt) return null;
     const item: ExtractItem = { op: "add_task", task: { title: title.trim(), dueAt, position, confidence: 1 } };
-    commit([item]);
+    return commit([item]);
   }
   function correctRecord(id: string, kind: "event" | "rest", date: string, quote: string) {
     const item: ExtractItem = kind === "rest"
@@ -131,10 +161,11 @@ export function useLedger() {
 
   const api = {
     today, personal, sample, view, records, editable, result, goals, timeline, personalEmpty, filters, recordTaskId, linkedTaskTitle, SAMPLE_META,
-    refreshToday, persist, commit, confirmPending, denyPending, deleteRecord, deleteTask, correctRecord, clearFilters, exportCurrent, findPending, shiftDate,
+    persistError, refreshToday, persist, commit, confirmPending, denyPending, deleteRecord, deleteTask, correctRecord, clearFilters, exportCurrent, findPending,
+    shiftDate, inspectBackup, dismissPersistError,
   };
   const internal = {
-    completeTask, addGoal, clearData, setViewData, writeCount, setRecordTaskId,
+    completeTask, addGoal, clearData, setViewData, writeCount, setRecordTaskId, restoreBackup,
   };
   return { api, internal };
 }

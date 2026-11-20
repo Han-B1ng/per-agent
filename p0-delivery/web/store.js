@@ -1,6 +1,7 @@
 // 本地持久化：个人记录与样例严格分离。v2 原地迁移 v1，迁移前保留原键以便回退。
 const KEY = "pe.personal.v2";
 const LEGACY_KEY = "pe.personal.v1";
+const PERSONAL_VERSION = 2;
 
 export function emptyPersonal() {
   return { version: 2, events: [], rests: [], tasks: [], chat: [], audit: [] };
@@ -95,6 +96,28 @@ function normalize(p) {
   };
 }
 
+const isObject = (v) => Boolean(v) && typeof v === "object" && !Array.isArray(v);
+const isLedger = (v) => isObject(v) && ["events", "rests", "tasks", "chat", "audit"].some((key) => Array.isArray(v[key]));
+
+// 恢复沿用存储层的 normalize：v1 备份走同一条迁移，未知字段和坏记录按现有规则过滤。
+export function parsePersonalBackup(text) {
+  if (typeof text !== "string" || !text.trim()) return { ok: false, code: "invalid_file", message: "文件无效：文件为空或无法读取。" };
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return { ok: false, code: "invalid_file", message: "文件无效：不是有效的 JSON。" };
+  }
+  if (!isObject(data)) return { ok: false, code: "invalid_file", message: "文件无效：没有找到账本数据。" };
+  if (data.scope != null && data.scope !== "personal") return { ok: false, code: "invalid_file", message: "文件无效：这不是个人账本备份。" };
+  const ledger = isObject(data.records) ? data.records : data;
+  if (!isLedger(ledger)) return { ok: false, code: "invalid_file", message: "文件无效：缺少账本字段。" };
+  const version = ledger.version == null ? 1 : ledger.version;
+  if (!Number.isInteger(version) || version < 1) return { ok: false, code: "invalid_file", message: "文件无效：版本号无法识别。" };
+  if (version > PERSONAL_VERSION) return { ok: false, code: "unsupported_version", message: `版本暂不支持：备份为 v${version}，当前支持 v1 与 v${PERSONAL_VERSION}。` };
+  return { ok: true, version, ledger: normalize(ledger) };
+}
+
 export function loadPersonal() {
   try {
     const current = localStorage.getItem(KEY);
@@ -112,8 +135,10 @@ export function loadPersonal() {
 export function savePersonal(p) {
   try {
     localStorage.setItem(KEY, JSON.stringify(normalize(p)));
+    return true;
   } catch {
-    // 存储不可用（隐私模式/配额）时保持内存态，不阻断交互
+    // 存储不可用（隐私模式/配额）时返回失败，由调用方提示未保存
+    return false;
   }
 }
 

@@ -67,7 +67,7 @@ export function useChat(ledger: LedgerWorkspace, navigation: NavigationWorkspace
     ledger.api.personal.value.chat.push(failed);
     lastFailed.value = failed;
     lastExtract.value = { status: "failed", message: error.message };
-    if (error.code !== "conflict") modelState.value = "degraded";
+    if (error.code !== "conflict" && error.code !== "not_saved") modelState.value = "degraded";
   }
   function markClarification(message: ChatMessage, clarification: Clarification, status: "resolved" | "cancelled", resolution?: Clarification["resolution"]) {
     // applyItems 会重建账本快照；写入后必须按稳定 ID 重新定位，不能持有旧对象。
@@ -97,6 +97,11 @@ export function useChat(ledger: LedgerWorkspace, navigation: NavigationWorkspace
     const write = ledger.api.commit([item]);
     const receipt = buildReceipt({ writes: [item], result: write, clarifications: 0 });
     if (!write.applied) {
+      if (!write.saved) {
+        recordFailure(clarification.sourceText || label, { code: "not_saved", message: write.errors[0] || "未保存：浏览器写入失败，这条记录没有写入本机。" });
+        ledger.api.persist();
+        return;
+      }
       markClarification(message, clarification, "cancelled", { text: write.errors[0] || "记录已变化", op: item.op, targetId: "id" in item ? item.id : undefined });
       recordFailure(clarification.sourceText || label, { code: "conflict", message: write.errors[0] || "账本已变化，这条没有写入。" });
       ledger.api.persist();
@@ -194,9 +199,11 @@ export function useChat(ledger: LedgerWorkspace, navigation: NavigationWorkspace
     }
     const write = plan.writes.length
       ? ledger.api.commit(plan.writes)
-      : { newPending: [], changed: 0, errors: [], applied: true };
+      : { newPending: [], changed: 0, errors: [], applied: true, saved: true };
     if (!write.applied) {
-      recordFailure(text, { code: "conflict", message: "账本已变化，这次操作整批未写入。请按最新记录重试。" });
+      recordFailure(text, write.saved
+        ? { code: "conflict", message: "账本已变化，这次操作整批未写入。请按最新记录重试。" }
+        : { code: "not_saved", message: write.errors[0] || "未保存：浏览器写入失败，这条记录没有写入本机。" });
       return;
     }
     const now = new Date().toISOString();

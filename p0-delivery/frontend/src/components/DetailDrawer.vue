@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from "vue";
 import type { Workspace } from "../composables/useWorkspace";
-import type { EngineLine, GoalView } from "../types";
+import type { EngineLine, GoalView, PersonalLedger } from "../types";
 
 const ws = inject<Workspace>("workspace")!;
 const {
@@ -9,6 +9,7 @@ const {
   records, result, personal, clearArmed, view, today, modelState, closeDrawer, openEntity, openWeekForDate,
   setPage, deleteTask, deleteRecord, confirmPending, denyPending, correctRecord,
   clearPersonalData, exportCurrent, requestCompleteTask, completionRequest, completeTask, theme, setTheme,
+  inspectBackup, restorePersonal,
 } = ws;
 const themes = [
   { id: "dark", label: "Dark" },
@@ -18,6 +19,11 @@ const themes = [
 const editDate = ref("");
 const editQuote = ref("");
 const pendingError = ref("");
+const restoreInput = ref<HTMLInputElement | null>(null);
+const pendingRestore = ref<PersonalLedger | null>(null);
+const restoreSummary = ref("");
+const restoreError = ref<{ code: string; message: string } | null>(null);
+const restoreNotice = ref("");
 const fmtIndex = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtPct = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(2)}%`;
 const fmtContrib = (c: number) => `${c > 0 ? "+" : ""}${(c * 100).toFixed(2)}%`;
@@ -74,6 +80,55 @@ function completeSelected() {
 function openGoalWeek() {
   if (!selectedGoal.value) return;
   openWeekForDate(selectedGoal.value.doneAt ? String(selectedGoal.value.doneAt).slice(0, 10) : today.value);
+}
+function resetRestoreState() {
+  pendingRestore.value = null;
+  restoreSummary.value = "";
+  restoreError.value = null;
+  restoreNotice.value = "";
+}
+watch(() => [drawer.open, drawer.mode] as const, ([open, mode]) => {
+  if (open && mode === "settings") resetRestoreState();
+});
+function pickRestoreFile() {
+  restoreInput.value?.click();
+}
+async function onRestoreFile(event: Event) {
+  const input = event.target as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  resetRestoreState();
+  let text: string;
+  try {
+    text = await file.text();
+  } catch {
+    restoreError.value = { code: "invalid_file", message: "文件无效：无法读取所选文件。" };
+    return;
+  }
+  const parsed = inspectBackup(text);
+  if (!parsed.ok) {
+    restoreError.value = { code: parsed.code, message: parsed.message };
+    return;
+  }
+  pendingRestore.value = parsed.ledger;
+  restoreSummary.value = `${parsed.ledger.events.length + parsed.ledger.rests.length} 条记录、${parsed.ledger.tasks.length} 个目标`;
+}
+function confirmRestore() {
+  if (!pendingRestore.value) return;
+  const result = restorePersonal(pendingRestore.value);
+  if (!result.ok) {
+    restoreError.value = { code: result.code, message: result.message };
+    return;
+  }
+  restoreNotice.value = `已恢复 ${restoreSummary.value}。`;
+  pendingRestore.value = null;
+  restoreError.value = null;
+}
+function cancelRestore() {
+  pendingRestore.value = null;
+  restoreSummary.value = "";
+  restoreError.value = null;
 }
 </script>
 
@@ -205,8 +260,21 @@ function openGoalWeek() {
             </section>
             <section class="settings-block">
               <h3>本机数据</h3>
-              <p>个人记录保存在当前浏览器。</p>
-              <button class="action-btn" type="button" @click="exportCurrent">{{ view === "sample" ? "导出样例 JSON" : "导出我的 JSON" }}</button>
+              <p>个人记录保存在当前浏览器。可导出备份，或从导出的 JSON 恢复。</p>
+              <div class="settings-actions">
+                <button class="action-btn" type="button" @click="exportCurrent">{{ view === "sample" ? "导出样例 JSON" : "导出我的 JSON" }}</button>
+                <button id="restore-open" class="action-btn" type="button" @click="pickRestoreFile">从 JSON 恢复</button>
+                <input id="restore-file" ref="restoreInput" type="file" accept="application/json,.json" hidden @change="onRestoreFile">
+              </div>
+              <p v-if="restoreError" id="restore-error" class="settings-feedback error" role="alert" :data-code="restoreError.code">{{ restoreError.message }}</p>
+              <div v-if="pendingRestore" id="restore-confirm-block" class="restore-confirm">
+                <p id="restore-summary">将恢复 {{ restoreSummary }}。恢复会覆盖当前个人账本与对话，样例不受影响，且不可撤销。</p>
+                <div class="detail-actions">
+                  <button id="restore-confirm" class="action-btn danger" type="button" @click="confirmRestore">确认恢复</button>
+                  <button id="restore-cancel" class="action-btn" type="button" @click="cancelRestore">取消</button>
+                </div>
+              </div>
+              <p v-if="restoreNotice" id="restore-success" class="settings-feedback success" role="status">{{ restoreNotice }}</p>
             </section>
             <section class="settings-block">
               <h3>模型连接</h3>
