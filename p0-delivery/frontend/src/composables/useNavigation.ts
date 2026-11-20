@@ -103,10 +103,17 @@ export function useNavigation(ledger: LedgerWorkspace) {
   }
   function addGoal(title: string, dueAt: string, position: number) {
     if (ledger.api.view.value === "sample") ledger.internal.setViewData("personal");
-    ledger.internal.addGoal(title, dueAt, position);
-    goalFormOpen.value = false;
+    const write = ledger.internal.addGoal(title, dueAt, position);
+    if (write?.applied && write.saved) goalFormOpen.value = false;
+    return write;
   }
   function resetForClear() {
+    focusMode.value = false;
+    completionRequest.value = null;
+    lastCompletedGoalId.value = "";
+    clearArmed.value = false;
+  }
+  function resetForRestore() {
     focusMode.value = false;
     completionRequest.value = null;
     lastCompletedGoalId.value = "";
@@ -120,7 +127,7 @@ export function useNavigation(ledger: LedgerWorkspace) {
     openGoalForm, openFirstActiveGoal, requestCompleteTask, cancelCompletion, completeTask, confirmCompletion,
     clearCompletedNotice, addGoal,
   };
-  const internal = { resetForClear };
+  const internal = { resetForClear, resetForRestore };
   return { api, internal };
 }
 

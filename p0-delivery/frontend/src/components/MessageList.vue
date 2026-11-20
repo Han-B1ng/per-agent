@@ -81,8 +81,8 @@ onMounted(scrollBottom);
                 </div>
               </div>
             </template>
-            <div v-if="message.failed" class="msg-card failed">
-              <div class="card-quote">这条没有进入记录。<span class="fail-tag">未录入</span></div>
+            <div v-if="message.failed" class="msg-card failed" :data-code="message.failed.code">
+              <div class="card-quote">{{ message.failed.code === "not_saved" ? "这条没有写入本机。" : "这条没有进入记录。" }}<span class="fail-tag">{{ message.failed.code === "not_saved" ? "未保存" : "未录入" }}</span></div>
               <div class="card-actions">
                 <button class="card-btn" type="button" @click="retryFailed(message, false)">重试</button>
                 <button class="card-btn ghost" type="button" @click="retryFailed(message, true)">改用本地识别</button>
