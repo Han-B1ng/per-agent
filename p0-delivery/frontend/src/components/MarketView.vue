@@ -68,7 +68,7 @@ onBeforeUnmount(() => observer?.disconnect());
             <span class="chart-tab active">周 K</span>
             <span class="chart-range">{{ weekRange }}</span>
           </div>
-          <button type="button" class="chart-detail-btn" data-testid="chart-detail" @click="openLastWeek">计算明细 <span aria-hidden="true">↗</span></button>
+          <button v-if="!emptyPersonal" type="button" class="chart-detail-btn" data-testid="chart-detail" @click="openLastWeek">计算明细 <span aria-hidden="true">↗</span></button>
         </div>
         <div class="chart">
           <CandleChart v-if="!emptyPersonal" :weeks="visibleWeeks" :label="chartLabel" :minimal="focusMode" @select="selectWeek" />
