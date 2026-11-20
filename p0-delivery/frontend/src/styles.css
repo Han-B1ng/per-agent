@@ -710,3 +710,11 @@ body { background: var(--pe-color-surface-canvas); }
 .workspace[data-mode="focus"] .messages { padding-bottom: calc(150px + var(--composer-extra, 0px)); }
 .quick-actions { bottom: calc(80px + var(--composer-extra, 0px)); }
 .conversation:not(.is-focus) { max-height: calc(100% - var(--market-height, 0px) - 118px - var(--composer-extra, 0px)); }
+
+/* Center the fixed composer in the main column so it aligns with the conversation */
+.workspace { --shell-sidebar: 184px; }
+.compose-area { left: calc(50% + var(--shell-sidebar) / 2); width: min(704px, calc(100% - var(--shell-sidebar) - 56px)); }
+@media (max-width: 760px) {
+  .workspace { --shell-sidebar: 0px; }
+  .compose-area { left: 50%; width: min(704px, calc(100% - 28px)); }
+}

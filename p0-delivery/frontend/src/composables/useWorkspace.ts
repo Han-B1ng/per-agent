@@ -108,7 +108,6 @@ export function useWorkspace() {
   function focusComposer() {
     if (view.value === "sample") setView("personal");
     setPage("market");
-    conversationOpen.value = true;
     composerFocusSignal.value += 1;
   }
   function openGoalForm() {
@@ -419,7 +418,7 @@ export function useWorkspace() {
     busy.value = true;
     let context = buildContext(options.skipUser ? text : "");
     if (!options.skipUser) personal.value.chat.push({ id: genId("msg"), role: "user", text });
-    conversationOpen.value = true;
+    openConversation();
     const local = tryResolveClarification(text);
     if (local !== "none") {
       const continueWithModel = (local === "resolved" || local === "cancelled") && hasAdditionalIntent(text);

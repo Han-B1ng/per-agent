@@ -255,6 +255,8 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   await page.waitForTimeout(300);
   const focused = await market();
   check(`F[${tag}] 侧栏往返后首次聚焦图表不动`, initial.x === focused.x && initial.y === focused.y && initial.w === focused.w && initial.h === focused.h && focused.transform === initial.transform, JSON.stringify(focused));
+  const clickOnly = await page.evaluate(() => ({ collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
+  check(`F[${tag}] 点击输入框只聚焦不展开聊天`, clickOnly.collapsed && clickOnly.focused === "entry", JSON.stringify(clickOnly));
   await page.setViewportSize({ width: 1100, height: Math.max(620, height - 100) });
   await page.waitForTimeout(400);
   check(`F[${tag}] 缩窗未按消息条数误触专注`, (await market()).mode === "market", JSON.stringify(await market()));
