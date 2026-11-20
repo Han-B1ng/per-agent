@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createApp } from "../server/index.mjs";
@@ -20,6 +20,18 @@ function fixture() {
   const dir = mkdtempSync(path.join(tmpdir(), "pe-static-"));
   writeFileSync(path.join(dir, "index.html"), "<!doctype html><title>fixture</title>");
   return dir;
+}
+// 静态根在临时目录的子层，同级放越界文件，根内再放一个指向它的符号链接。
+function guardedFixture() {
+  const dir = mkdtempSync(path.join(tmpdir(), "pe-static-guard-"));
+  const root = path.join(dir, "public");
+  mkdirSync(path.join(root, "assets"), { recursive: true });
+  writeFileSync(path.join(root, "index.html"), "<!doctype html><title>fixture</title>");
+  writeFileSync(path.join(root, "assets", "app.js"), "console.log(1)");
+  const outside = path.join(dir, "secret.txt");
+  writeFileSync(outside, "top-secret");
+  symlinkSync(outside, path.join(root, "leak.js"));
+  return { root, outside };
 }
 function ctx(over = {}) { return { today: TODAY, openTasks: [], pendingEvents: [], turns: [], ...over }; }
 
@@ -155,6 +167,26 @@ test("静态：/ 200 html；穿越 404；未知 404", async () => {
   assert.equal(trav2.status, 404);
   const missing = await fetch(base(s) + "/nope.js");
   assert.equal(missing.status, 404);
+  s.close();
+});
+
+test("静态防护：真实路径越出根目录（含符号链接）404，正常资源 GET/HEAD 不变", async () => {
+  const { root, outside } = guardedFixture();
+  const s = await listen(createApp({ env: {}, staticRoot: root }));
+  const asset = await fetch(base(s) + "/assets/app.js");
+  assert.equal(asset.status, 200);
+  assert.equal(await asset.text(), "console.log(1)");
+  assert.match(asset.headers.get("content-type"), /text\/javascript/);
+  const head = await fetch(base(s) + "/assets/app.js", { method: "HEAD" });
+  assert.equal(head.status, 200);
+  assert.match(head.headers.get("content-type"), /text\/javascript/);
+  assert.equal(await head.text(), "");
+  for (const url of ["/%2e%2e/secret.txt", "/%2e%2e/%2e%2e/etc/passwd", "/leak.js", "/%ff"]) {
+    const res = await fetch(base(s) + url);
+    assert.equal(res.status, 404, url + " 应被拒绝");
+    assert.equal(await res.text(), "not found");
+  }
+  assert.equal(readFileSync(outside, "utf8"), "top-secret"); // 越界目标确实可读，404 来自防护而非文件缺失
   s.close();
 });
 
