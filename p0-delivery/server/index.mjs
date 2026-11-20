@@ -1,7 +1,7 @@
 // 唯一服务端职责：模型代理 + 静态托管。零 npm 依赖（node 内置）。
 import http from "node:http";
 import { createHash } from "node:crypto";
-import { readFile, stat } from "node:fs/promises";
+import { readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as model from "./model.mjs";
@@ -15,6 +15,17 @@ const MIME = {
   ".mjs": "text/javascript; charset=utf-8", ".json": "application/json; charset=utf-8", ".png": "image/png",
   ".svg": "image/svg+xml", ".webm": "video/webm", ".ico": "image/x-icon", ".woff2": "font/woff2",
 };
+
+// `..` 只算一层，所以 `..x` / `..abc` 这类合法文件名不能被误判为穿越。
+function isInside(root, target) {
+  const rel = path.relative(root, target);
+  return rel === "" || (rel !== ".." && !rel.startsWith(".." + path.sep) && !path.isAbsolute(rel));
+}
+
+function notFound(res) {
+  res.writeHead(404);
+  res.end("not found");
+}
 
 export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {}) {
   const hasKey = Boolean(env.MODEL_API_KEY);
@@ -42,18 +53,27 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {
   }
 
   async function serveStatic(res, root, urlPath) {
-    let rel = decodeURIComponent(urlPath);
-    if (rel.endsWith("/")) rel += "index.html";
-    const file = path.resolve(root, "." + rel);
-    if (!file.startsWith(root + path.sep) && file !== root) { res.writeHead(404); res.end("not found"); return; }
+    const rootDir = path.resolve(root);
+    let rel;
     try {
-      const st = await stat(file);
-      if (!st.isFile()) { res.writeHead(404); res.end("not found"); return; }
-      const data = await readFile(file);
+      rel = decodeURIComponent(urlPath);
+    } catch {
+      return notFound(res);
+    }
+    if (rel.includes("\0")) return notFound(res);
+    if (rel.endsWith("/")) rel += "index.html";
+    const file = path.resolve(rootDir, "." + rel);
+    if (!isInside(rootDir, file)) return notFound(res);
+    try {
+      const [realRoot, realFile] = await Promise.all([realpath(rootDir), realpath(file)]);
+      if (!isInside(realRoot, realFile)) return notFound(res);
+      const st = await stat(realFile);
+      if (!st.isFile()) return notFound(res);
+      const data = await readFile(realFile);
       res.writeHead(200, { "Content-Type": MIME[path.extname(file)] || "application/octet-stream", "Cache-Control": "no-cache" });
       res.end(data);
     } catch {
-      res.writeHead(404); res.end("not found");
+      return notFound(res);
     }
   }
 
