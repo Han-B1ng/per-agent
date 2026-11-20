@@ -17,6 +17,14 @@ export const PROTOCOL_LIMITS = Object.freeze({
 
 const CANCEL_RE = /^(不是|不是这个|不对|记错|算了|取消|不用了|不记了|先不|没有的事|不处理)[。！!～~\s]*$/;
 const VAGUE_PAST_RE = /前阵子|之前|有一次|上次|前些日子|前段时间/;
+const EXPLICIT_DATE_RE = /昨天|昨日|前天|大前天|今天|今日|上周|周[一二三四五六日天]|礼拜|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|\d+\s*天前/;
+const NOT_DONE_RE = /还没|还没有|没交|未交|没完成|未完成|还没完成|没做|没写|没有做|尚未|不算/;
+const NEGATED_DELETE_RE = /没删|还没删|不删|别删|不要删/;
+const QUESTION_RE = /[吗呢?？]|是否/;
+const TASK_COMPLETE_RE = /交了|交完|提交了|完成|做完|搞定|写完|通过|已交|已经交/;
+const TASK_DELETE_RE = /删|删除|移除|去掉|不要了|取消/;
+const DEMONSTRATIVE_RE = /那个|这个|这条|那条|该目标|这个目标|这条目标|这一项|那一项/;
+const RECORD_DENY_RE = /不是|不对|否认|不记|别记|删|删除|取消|没有的事/;
 
 export function normalizeText(value) {
   return String(value || "")
@@ -134,51 +142,100 @@ export function isCancelText(text) {
   return CANCEL_RE.test(String(text || "").trim());
 }
 
+function isQuestionText(text) {
+  const source = String(text || "").trim();
+  return QUESTION_RE.test(source) && !/^(确认|是的|对|没错)/.test(source);
+}
+
+export function isQuestionOnlyText(text) {
+  return isQuestionText(text) && !hasAdditionalIntent(String(text || ""));
+}
+
+function explicitTaskSelection(text, candidate, ordinal) {
+  if (ordinal >= 0) return true;
+  const source = normalizeText(text);
+  const title = normalizeText(candidate?.title || candidate?.label || "");
+  const id = normalizeText(candidate?.id || "");
+  if (id && source.includes(id)) return true;
+  if (title && source.includes(title)) return true;
+  return DEMONSTRATIVE_RE.test(String(text || ""));
+}
+
+function strongTaskSelection(text, candidate, ordinal) {
+  if (ordinal >= 0) return true;
+  const source = normalizeText(text);
+  const id = normalizeText(candidate?.id || "");
+  return Boolean(id && source.includes(id)) || DEMONSTRATIVE_RE.test(String(text || ""));
+}
+
 function resolveTaskCandidate(clarification, text, today) {
-  const candidates = clarification.candidates || [];
-  const ordinal = ordinalIndex(text, candidates.length);
-  if (ordinal >= 0) {
-    const candidate = candidates[ordinal];
-    const item = { op: clarification.intent, id: candidate.id };
-    if (clarification.intent === "complete_task") {
-      const date = resolveDate(text, today);
-      item.doneAt = date && date <= today ? date : today;
-    }
-    return { status: "resolved", item, candidate };
+  const source = String(text || "");
+  if (clarification.intent === "complete_task" && NOT_DONE_RE.test(source)) {
+    return { status: "negative", reason: "not_done" };
   }
-  const match = matchTaskCandidates(text, candidates.map((candidate) => ({
-    id: candidate.id,
-    title: candidate.title || candidate.label || "",
-    dueAt: candidate.dueAt,
-  })));
-  if (match.ambiguous) return { status: "ambiguous", candidates: match.candidates };
-  if (!match.candidates.length) return { status: "unrelated" };
-  const candidate = candidates.find((entry) => entry.id === match.candidates[0].id);
+  if (clarification.intent === "delete_task" && NEGATED_DELETE_RE.test(source)) {
+    return { status: "negative", reason: "not_deleted" };
+  }
+  if (isQuestionText(source)) return { status: "unrelated" };
+
+  const candidates = clarification.candidates || [];
+  const ordinal = ordinalIndex(source, candidates.length);
+  const match = ordinal < 0
+    ? matchTaskCandidates(source, candidates.map((candidate) => ({
+      id: candidate.id,
+      title: candidate.title || candidate.label || "",
+      dueAt: candidate.dueAt,
+    })))
+    : null;
+  if (match?.ambiguous) return { status: "ambiguous", candidates: match.candidates };
+  const candidate = ordinal >= 0
+    ? candidates[ordinal]
+    : candidates.find((entry) => entry.id === match.candidates[0]?.id);
+  if (!candidate) return { status: "unrelated" };
+  if (!explicitTaskSelection(source, candidate, ordinal)) return { status: "unrelated" };
+
+  const actionWords = clarification.intent === "complete_task" ? TASK_COMPLETE_RE.test(source) : TASK_DELETE_RE.test(source);
+  const extraIntent = hasAdditionalIntent(source);
+  if (extraIntent && !actionWords && !strongTaskSelection(source, candidate, ordinal)) {
+    return { status: "unrelated" };
+  }
+  if (!actionWords && !explicitTaskSelection(source, candidate, ordinal)) return { status: "unrelated" };
+
   const item = { op: clarification.intent, id: candidate.id };
   if (clarification.intent === "complete_task") {
-    const date = resolveDate(text, today);
+    const date = resolveDate(source, today);
     item.doneAt = date && date <= today ? date : today;
   }
   return { status: "resolved", item, candidate };
 }
 
 function resolveRecordCandidate(clarification, text, today) {
+  const source = String(text || "");
+  if (["confirm_event", "confirm_rest"].includes(clarification.intent) && RECORD_DENY_RE.test(source)) {
+    return { status: "negative", reason: "denied" };
+  }
+  if (isQuestionText(source)) return { status: "unrelated" };
   const candidates = clarification.candidates || [];
-  const ordinal = ordinalIndex(text, candidates.length);
-  let candidate = ordinal >= 0 ? candidates[ordinal] : null;
-  if (!candidate) {
-    const match = matchTaskCandidates(text, candidates.map((entry) => ({
+  const ordinal = ordinalIndex(source, candidates.length);
+  const match = ordinal < 0
+    ? matchTaskCandidates(source, candidates.map((entry) => ({
       id: entry.id,
       title: entry.quote || entry.label || "",
       dueAt: entry.date,
-    })));
-    if (match.ambiguous) return { status: "ambiguous", candidates: match.candidates };
-    if (!match.candidates.length) return { status: "unrelated" };
-    candidate = candidates.find((entry) => entry.id === match.candidates[0].id);
-  }
+    })))
+    : null;
+  if (match?.ambiguous) return { status: "ambiguous", candidates: match.candidates };
+  const candidate = ordinal >= 0 ? candidates[ordinal] : candidates.find((entry) => entry.id === match.candidates[0]?.id);
   if (!candidate) return { status: "unrelated" };
+
+  const sourceNorm = normalizeText(source);
+  const quoteNorm = normalizeText(candidate.quote || candidate.label || "");
+  const isStrong = ordinal >= 0 || (candidate.id && sourceNorm.includes(normalizeText(candidate.id))) || DEMONSTRATIVE_RE.test(source) || (quoteNorm && sourceNorm.includes(quoteNorm));
+  if (hasAdditionalIntent(source) && !isStrong) return { status: "unrelated" };
+  if (!isStrong) return { status: "unrelated" };
+
   const item = { op: clarification.intent, id: candidate.id };
-  const date = resolveDate(text, today);
+  const date = resolveDate(source, today);
   if (clarification.intent === "confirm_event" && date && date <= today) item.occurredAt = date;
   if (clarification.intent === "confirm_rest" && date && date <= today) item.date = date;
   return { status: "resolved", item, candidate };
@@ -241,6 +298,30 @@ export function validateClarificationAgainstLedger(clarification, { openTasks = 
   return errors;
 }
 
+export function clauseAroundQuote(text, quote) {
+  const source = String(text || "");
+  const needle = String(quote || "").trim();
+  if (!source || !needle) return source;
+  let index = source.indexOf(needle);
+  if (index < 0 && needle.length >= 4) index = source.indexOf(needle.slice(0, 4));
+  if (index < 0) return source;
+  const start = Math.max(source.lastIndexOf("，", index - 1), source.lastIndexOf(",", index - 1), source.lastIndexOf("。", index - 1), source.lastIndexOf("；", index - 1), source.lastIndexOf(";", index - 1), source.lastIndexOf("\n", index - 1)) + 1;
+  const ends = ["，", ",", "。", "；", ";", "\n"].map((mark) => source.indexOf(mark, index + needle.length)).filter((position) => position >= 0);
+  const end = ends.length ? Math.min(...ends) : source.length;
+  return source.slice(start, end).trim();
+}
+
+export function hasDateEvidence(quote, text) {
+  const source = String(quote || "").trim();
+  return EXPLICIT_DATE_RE.test(source) || EXPLICIT_DATE_RE.test(clauseAroundQuote(text, source));
+}
+
+export function isVaguePastItem(quote, text, today) {
+  const source = String(quote || "").trim();
+  const vague = source ? VAGUE_PAST_RE.test(source) : (VAGUE_PAST_RE.test(String(text || "")) && resolveDate(text, today) == null);
+  return vague && !hasDateEvidence(source, text);
+}
+
 export function isVaguePastText(text, today) {
   return VAGUE_PAST_RE.test(String(text || "")) && resolveDate(text, today) == null;
 }
@@ -253,28 +334,31 @@ export function guardAmbiguousTaskWrites(items, text, openTasks) {
   const out = [];
   const existing = new Set((items || [])
     .filter((item) => item?.op === "request_clarification" && item.clarification?.kind === "task_target")
-    .flatMap((item) => (item.clarification.candidates || []).map((candidate) => candidate.id)));
+    .map((item) => `${item.clarification.intent}:${(item.clarification.candidates || []).map((candidate) => candidate.id).join(",")}`));
+  const added = new Set();
   for (const item of items || []) {
     if (item?.op === "complete_task" || item?.op === "delete_task") {
       if (candidateIds.has(item.id)) {
+        const key = `${item.op}:${[...candidateIds].join(",")}`;
+        if (!existing.has(key) && !added.has(key)) {
+          out.push(taskClarification(text, match.candidates, { intent: item.op }));
+          added.add(key);
+        }
         converted += 1;
         continue;
       }
     }
     out.push(item);
   }
-  if (!converted) return { items, converted: 0 };
-  if (!existing.size) out.push(taskClarification(text, match.candidates, { intent: "complete_task" }));
   return { items: out, converted };
 }
 
 export function applyVagueDateGuard(items, text, today) {
-  if (!isVaguePastText(text, today)) return items;
   return (items || []).map((item) => {
-    if (item?.op === "add_event" && item.event?.occurredAt === today && item.event.confidence >= 0.6) {
+    if (item?.op === "add_event" && isVaguePastItem(item.event?.quote, text, today) && item.event.confidence >= 0.6) {
       return { ...item, event: { ...item.event, confidence: 0.4 } };
     }
-    if (item?.op === "add_rest" && item.rest?.date === today && item.rest.confidence >= 0.6) {
+    if (item?.op === "add_rest" && isVaguePastItem(item.rest?.quote, text, today) && item.rest.confidence >= 0.6) {
       return { ...item, rest: { ...item.rest, confidence: 0.4 } };
     }
     return item;
@@ -372,15 +456,37 @@ export function validateAgentWrites(items, { today, text } = {}) {
   return errors;
 }
 
-const SUCCESS_CLAIM = /已(?:经)?(?:记录|写入|完成|计入|记上)|目标已完成|记下了|记上了/;
-const ADDITIONAL_INTENT = /跑|公里|健身|锻炼|散步|读完|看书|读书|复习|背单词|熬夜|刷手机|拖延|翘课|早起|休息|摆烂|请假|放假|焦虑|紧张|压力|开心|高兴|快乐|难过|伤心|低落|累|疲惫|烦|烦躁|孤独|想家|我想|我要|计划|打算|准备/;
+const SUCCESS_CLAIM = /已(?:经)?(?:记录|写入|完成|计入|计分|记入|记上)|进(?:了)?(?:今天|当天)的走势|目标已完成|记下了|记上了/;
+const ADDITIONAL_INTENT = /跑|公里|健身|锻炼|散步|读完|看书|读书|复习|背单词|熬夜|刷手机|拖延|翘课|早起|休息|摆烂|请假|放假|焦虑|紧张|压力|开心|高兴|快乐|难过|伤心|低落|累|疲惫|烦|烦躁|孤独|想家|我想|我要|计划|打算|准备|删|删除|移除/;
 
 export function hasAdditionalIntent(text) {
   return ADDITIONAL_INTENT.test(String(text || ""));
 }
-export function sanitizeAgentReply(reply, receipt) {
-  if (receipt && (receipt.status === "empty" || receipt.status === "clarification") && SUCCESS_CLAIM.test(String(reply || ""))) {
-    return receipt.status === "clarification" ? "先确认一下，再写入记录。" : "这条还没有写入，请再确认一下要记录什么。";
+
+function stripSuccessClaims(reply) {
+  return String(reply || "")
+    .replace(/[^。！？!?]*?(?:已(?:经)?(?:记录|写入|完成|计入|计分|记入|记上)|进(?:了)?(?:今天|当天)的走势|目标已完成|记下了|记上了)[^。！？!?]*[。！？!?]?/g, "")
+    .trim();
+}
+
+function receiptNote(receipt) {
+  if (receipt.status === "pending") {
+    const parts = [];
+    if (receipt.pending) parts.push(`${receipt.pending} 项待确认，确认前不计分`);
+    if (receipt.clarifications) parts.push(`${receipt.clarifications} 项待澄清`);
+    return `部分事项已写入；${parts.join("，")}。`;
   }
-  return String(reply || "");
+  if (receipt.status === "clarification") return "先确认一下，再写入记录。";
+  if (receipt.status === "empty") return "这条还没有写入，请再确认一下要记录什么。";
+  if (receipt.status === "noop") return noOpReply(receipt);
+  return "";
+}
+
+export function sanitizeAgentReply(reply, receipt) {
+  const source = String(reply || "");
+  if (!receipt || receipt.status === "applied") return source;
+  if (!SUCCESS_CLAIM.test(source)) return source;
+  const remaining = stripSuccessClaims(source);
+  const note = receiptNote(receipt);
+  return remaining ? `${note}${remaining}` : note;
 }

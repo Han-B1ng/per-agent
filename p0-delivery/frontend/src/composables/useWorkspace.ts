@@ -1,7 +1,7 @@
 import { computed, reactive, ref } from "vue";
 import {
   applyItems, buildReceipt, buildSampleRecords, clearPersonal, computeAll, findRecord, genId, getClientId,
-  getGoals, getTimeline, hasAdditionalIntent, health, loadPersonal, noOpReply, normalizeClarification, planAgentItems, resolveClarificationReply,
+  getGoals, getTimeline, hasAdditionalIntent, health, isQuestionOnlyText, loadPersonal, noOpReply, normalizeClarification, planAgentItems, resolveClarificationReply,
   sanitizeAgentReply, savePersonal, send, shiftDate, validateAgentWrites, validateClarificationAgainstLedger, weekStartOf, SAMPLE_META,
 } from "../core";
 import type {
@@ -234,7 +234,7 @@ export function useWorkspace() {
       clarification,
       result: resolveClarificationReply(clarification, text, today.value),
     }));
-    const resolved = results.filter((entry) => entry.result.status === "resolved" || entry.result.status === "cancelled");
+    const resolved = results.filter((entry) => ["resolved", "cancelled", "negative"].includes(entry.result.status));
     if (resolved.length > 1) {
       personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "还有多个待确认事项，你想先处理哪一个？", mode: "local" });
       persist();
@@ -242,6 +242,17 @@ export function useWorkspace() {
     }
     if (resolved.length === 1) {
       const { message, clarification, result } = resolved[0];
+      if (result.status === "negative") {
+        const reply = result.reason === "not_done"
+          ? "这个目标还没完成，我先不标记。"
+          : result.reason === "not_deleted"
+            ? "这个目标还没删除，我先不动。"
+            : "好，这条待确认记录先不处理。";
+        markClarification(message, clarification, "cancelled", { text: reply, op: clarification.intent });
+        personal.value.chat.push({ id: genId("msg"), role: "assistant", text: reply, mode: "local" });
+        persist();
+        return "cancelled";
+      }
       if (result.status === "cancelled") {
         markClarification(message, clarification, "cancelled", { text: "用户取消", op: clarification.intent });
         personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "好，这条先不处理。", mode: "local" });
@@ -253,6 +264,11 @@ export function useWorkspace() {
     }
     if (results.some((entry) => entry.result.status === "ambiguous")) {
       personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "还是有点分不清，你指的是哪一个？可以直接说目标名、第几个或到期日。", mode: "local" });
+      persist();
+      return "ambiguous";
+    }
+    if (isQuestionOnlyText(text)) {
+      personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "你是想确认这一项，还是在问状态？如果要处理，请明确说「数据库那个，确认完成」。", mode: "local" });
       persist();
       return "ambiguous";
     }

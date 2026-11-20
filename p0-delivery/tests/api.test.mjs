@@ -265,3 +265,37 @@ test("Agent 协议 model stub：合法澄清透传，非法候选/未来日期�
   assert.equal(inventedRes.json.error.code, "bad_output");
   upInvented.close(); sInvented.close();
 });
+
+test("Agent 协议：模糊日期按 item 降置信，历史日不能绕过；多条 pending 不吞新事件", async () => {
+  const vague = { reply: "记下了", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-16", quote: "前阵子跑过五公里", tags: [], confidence: 0.9 } }] };
+  const up = await listen(okUpstream(vague));
+  const s = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(up) }, staticRoot: fixture() }));
+  const dated = await post(base(s), { text: "前阵子跑过五公里", context: ctx() });
+  assert.equal(dated.json.ok, true);
+  assert.equal(dated.json.items[0].event.confidence, 0.4);
+  up.close(); s.close();
+
+  const mixedPayload = { reply: "记下了", items: [
+    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-16", quote: "前阵子跑过五公里", tags: [], confidence: 0.9 } },
+    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: "2026-11-17", quote: "今天又跑了三公里", tags: [], confidence: 0.9 } },
+  ] };
+  const upMixed = await listen(okUpstream(mixedPayload));
+  const sMixed = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(upMixed) }, staticRoot: fixture() }));
+  const mixed = await post(base(sMixed), { text: "前阵子跑过五公里，今天又跑了三公里", context: ctx() });
+  assert.equal(mixed.json.items[0].event.confidence, 0.4);
+  assert.equal(mixed.json.items[1].event.confidence, 0.9);
+  upMixed.close(); sMixed.close();
+
+  const mockServer = await listen(createApp({ env: {}, staticRoot: fixture() }));
+  const pendingEvents = [
+    { id: "evt_a", quote: "旧事A", occurredAt: TODAY, eventType: "behavior", polarity: "positive", intensity: 2 },
+    { id: "evt_b", quote: "旧事B", occurredAt: TODAY, eventType: "behavior", polarity: "positive", intensity: 2 },
+  ];
+  const fresh = await post(base(mockServer), { text: "今天还跑了五公里", context: ctx({ pendingEvents }) });
+  assert.equal(fresh.json.ok, true);
+  assert.deepEqual(fresh.json.items.map((item) => item.op), ["add_event"]);
+  const datedAnswer = await post(base(mockServer), { text: "上周三", context: ctx({ pendingEvents }) });
+  assert.equal(datedAnswer.json.items[0].op, "request_clarification");
+  assert.equal(datedAnswer.json.items[0].clarification.kind, "record_target");
+  mockServer.close();
+});

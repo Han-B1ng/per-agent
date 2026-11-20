@@ -4,7 +4,8 @@
 import { parseDate, fmtDate } from "../web/engine.js";
 import { resolveDate, resolveDueDate } from "../web/date.js";
 import {
-  isVaguePastText,
+  hasAdditionalIntent,
+  isVaguePastItem,
   matchTaskCandidates,
   recordClarification,
   resolveClarificationReply,
@@ -25,6 +26,7 @@ const BEHAVIOR = /跑|公里|健身|锻炼|散步|读完|看书|读书|复习|�
 const NEG = [/熬夜|刷手机|刷了.*手机/, /拖延|拖了/, /翘课|逃课/, /暴饮暴食|通宵游戏/];
 const GOAL = /交|提交|完成|写完|做完|复习|准备|考|申请|目标|截止|汇报|答辩|报告|论文|课设/;
 const FUTURE = /(?:下周|本周|这周|周|礼拜)[一二三四五六日天]|明天|后天|大后天|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|\d+\s*天(?:后|以后|之后)|\d+\s*(?:周|礼拜)(?:后|以后|之后)|月底|月末/;
+const DATE_PHRASE = /上周|昨天|昨日|前天|大前天|今天|今日|周[一二三四五六日天]|礼拜|天前|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|就是今天/;
 const COMPLETION = /交了|交完|提交了|提交完成|完成了|做完了|搞定了|写完了|答辩通过|通过了|已交|已经交/;
 
 function has(re, text) {
@@ -41,6 +43,7 @@ function clauseOf(text, pattern) {
 }
 
 function isCompletionIntent(text) {
+  if (/[吗呢?？]|是否/.test(text) && !/^(确认|是的|对|没错)/.test(text)) return false;
   if (COMPLETION.test(text)) return true;
   return /完成|做完|写完/.test(text) && /(今天|昨天|刚刚|已经|了)/.test(text);
 }
@@ -49,6 +52,14 @@ function isGoalIntent(text) {
   if (!GOAL.test(text)) return false;
   if (!/(我想|我要|计划|打算|准备|目标|截止|之前|想)/.test(text) && !FUTURE.test(text)) return false;
   return true;
+}
+
+function isPureDateAnswer(text) {
+  return DATE_PHRASE.test(text)
+    && !hasAdditionalIntent(text)
+    && !isCompletionIntent(text)
+    && !isGoalIntent(text)
+    && !/休息|摆烂|请假|放假/.test(text);
 }
 
 function taskTitleOf(text) {
@@ -78,7 +89,7 @@ function pendingReply(pendingEvents, pendingRests, text, today) {
     if (/不是|记错|否认|取消|不对|没有的事|不记了/.test(text)) {
       return { reply: "好，这个休息标记不记了。", items: [{ op: "deny_rest", id: r.id }] };
     }
-    const isDateAnswer = /上周|昨天|前天|周[一二三四五六日天]|礼拜|天前|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|就是今天/.test(text) && !BEHAVIOR.test(text) && !isCompletionIntent(text);
+    const isDateAnswer = isPureDateAnswer(text);
     if (isDateAnswer) {
       const date = resolveDate(text, today);
       if (date) return { reply: "记下了，那天的停牌恢复生效。", items: [{ op: "confirm_rest", id: r.id, date }] };
@@ -89,7 +100,8 @@ function pendingReply(pendingEvents, pendingRests, text, today) {
     }
   }
   if (pendingEvents.length) {
-    if (pendingEvents.length > 1 && (/^(是的|对|确认|嗯|没错|就是那天|对的|是的没错)[。！!～~\s]*$/.test(text.trim()) || resolveDate(text, today))) {
+    const confirmation = /^(是的|对|确认|嗯|没错|就是那天|对的|是的没错)[。！!～~\s]*$/.test(text.trim());
+    if (pendingEvents.length > 1 && (confirmation || isPureDateAnswer(text))) {
       return {
         reply: "现在有多条待确认记录，你说的是哪一条？",
         items: [recordClarification(text, pendingEvents, "event", { intent: "confirm_event" })],
@@ -99,7 +111,7 @@ function pendingReply(pendingEvents, pendingRests, text, today) {
     if (/不是|记错|否认|取消|不对|没有的事|不记了/.test(text)) {
       return { reply: "好，这条不记了。", items: [{ op: "deny_event", id: p.id }] };
     }
-    const isDateAnswer = /上周|昨天|前天|周[一二三四五六日天]|礼拜|天前|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|就是今天/.test(text) && !BEHAVIOR.test(text) && !isCompletionIntent(text);
+    const isDateAnswer = isPureDateAnswer(text);
     if (isDateAnswer) {
       const date = resolveDate(text, today);
       if (date) return { reply: "记下了，补进那天的走势。", items: [{ op: "confirm_event", id: p.id, occurredAt: date }] };
@@ -119,6 +131,10 @@ function clarificationReply(clarifications, text, today) {
       return { reply: resolved.item.op === "complete_task" ? "这次记到具体目标上了。" : "好，按这条处理。", items: [resolved.item] };
     }
     if (resolved.status === "cancelled") return { reply: "好，这条先不处理。", items: [] };
+    if (resolved.status === "negative") {
+      if (hasAdditionalIntent(text)) return null;
+      return { reply: resolved.reason === "not_done" ? "这个目标还没完成，我先不标记。" : "这个目标还没删除，我先不动。", items: [] };
+    }
     if (resolved.status === "ambiguous") return { reply: "还是有点分不清，你指的是哪一个？", items: [] };
   }
   return null;
@@ -146,9 +162,10 @@ export function extract(text, context = {}) {
 
   // 休息：记录已发生的事（D31）；模糊过去仍低置信，确认前无停牌增益
   if (restIntent) {
-    const vaguePast = isVaguePastText(t, today);
+    const quote = t;
+    const vaguePast = isVaguePastItem(quote, t, today);
     const date = resolveDate(t, today) || today;
-    items.push({ op: "add_rest", rest: { date, quote: t, confidence: vaguePast ? 0.35 : 0.9 } });
+    items.push({ op: "add_rest", rest: { date, quote, confidence: vaguePast ? 0.35 : 0.9 } });
     replyParts.push(vaguePast ? "这是哪天休息的？告诉我日期，我再补进那天。" : "记下了，你今天想留点时间休息。");
   }
 
@@ -187,7 +204,8 @@ export function extract(text, context = {}) {
 
   // 情绪与已发生的行为（D18/D32）；完成/新增目标句不把目标名词误当行为
   const emoHit = EMO.find(([re]) => has(re, t));
-  const vaguePast = hasBehavior && isVaguePastText(t, today);
+  const behaviorQuote = behaviorClause(t) || t;
+  const vaguePast = hasBehavior && isVaguePastItem(behaviorQuote, t, today);
   const allowBehavior = hasBehavior && (restIntent || !completionIntent && !goalIntent || /跑了|跑步|公里|健身|锻炼|散步|读完|看书|读书|背单词|熬夜|刷手机|拖延|翘课|早起|小跑/.test(t));
   if (emoHit) {
     const quote = clauseOf(t, "焦虑|紧张|压力|开心|高兴|快乐|难过|伤心|低落|累|疲惫|烦|烦躁|孤独|想家") || t;
@@ -203,7 +221,7 @@ export function extract(text, context = {}) {
         polarity,
         intensity: behaviorIntensity(t),
         occurredAt: today,
-        quote: behaviorClause(t) || t,
+        quote: behaviorQuote,
         tags: [],
         confidence: vaguePast ? 0.35 : 0.95,
       },
