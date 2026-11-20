@@ -63,7 +63,7 @@ npm start
 node --env-file=.env server/index.mjs
 ```
 
-部署到 Qoder Sites 时，以 `p0-delivery/` 为项目目录，运行 `npm run build`。静态资源位于 `dist/`；Function 包生成到 `dist-functions/`，入口为 `dist-functions/index.ts`。Sites 的 Function 目录应使用 `dist-functions/`（由 `scripts/build-functions.mjs` 从 `functions/` 与 `web/` 组装，共享 core 只维护 `web/` 一份）。由 Sites 的 `qoder` 后端在服务端提供 `QODER_PAT`，模型凭据应保存在服务端环境中。
+部署到 Qoder Sites 时，以 `p0-delivery/` 为项目目录，运行 `npm run build`。静态资源位于 `dist/`；Function 包生成到 `dist-functions/`，入口为 `dist-functions/index.ts`。Sites 的 Function 目录应使用 `dist-functions/`（由 `scripts/build-functions.mjs` 从 `functions/` 与 `web/` 组装，共享 core 只维护 `web/` 一份）。由 Sites 的 `qoder` 后端在服务端提供 `QODER_PAT`，模型凭据应保存在服务端环境中。本地 Deno 调试使用 `npm run dev:function`（先构建生成包，再需本机 `deno`）。
 
 ## 测试
 

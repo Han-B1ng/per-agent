@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit -p frontend/tsconfig.json && vite build && npm run build:functions",
     "build:functions": "node scripts/build-functions.mjs",
+    "dev:function": "npm run build:functions && deno run --allow-net --allow-env --allow-read dev/function-local.ts",
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json",
     "start": "node server/index.mjs",
