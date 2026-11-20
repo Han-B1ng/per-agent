@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyPersonal, genId } from "../web/store.js";
+import { emptyPersonal, genId, getClientId } from "../web/store.js";
 import { applyItems } from "../web/ledger.js";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,6 +19,21 @@ test("genId 在缺少 randomUUID 的环境回退到旧格式", () => {
   } finally {
     if (descriptor) Object.defineProperty(globalThis, "crypto", descriptor);
     else delete globalThis.crypto;
+  }
+});
+
+test("已保存的客户端 ID 继续复用", () => {
+  const saved = "client_old_saved";
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  try {
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: { getItem: (key) => (key === "pe.client.v1" ? saved : null), setItem() {} },
+    });
+    assert.equal(getClientId(), saved);
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, "localStorage", descriptor);
+    else delete globalThis.localStorage;
   }
 });
 
