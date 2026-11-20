@@ -108,6 +108,60 @@ test("function cache：按访客和完整有效上下文隔离", async () => {
   assert.equal(otherTasks.cached, undefined);
 });
 
+test("function cache：TTL 到期后重新抽取", async () => {
+  let clock = 1_000_000;
+  const h = createHandler({ getToken: () => undefined, fetchImpl: stubFetch({}), logger: { info() {} }, cacheTtl: 1000, now: () => clock });
+  const context = { today: TODAY, clientId: "visitor-ttl", openTasks: [], pendingEvents: [], pendingRests: [], turns: [] };
+  const body = { text: "今天跑了五公里", context };
+  const first = await (await h(post(body))).json();
+  assert.equal(first.cached, undefined);
+  const second = await (await h(post(body))).json();
+  assert.equal(second.cached, true);
+  clock += 1001;
+  const third = await (await h(post(body))).json();
+  assert.equal(third.ok, true);
+  assert.equal(third.cached, undefined);
+});
+
+test("function cache：超过容量时保留最近使用项，淘汰最久未使用项", async () => {
+  const h = createHandler({ getToken: () => undefined, fetchImpl: stubFetch({}), logger: { info() {} }, cacheMax: 2 });
+  const context = { today: TODAY, clientId: "visitor-lru", openTasks: [], pendingEvents: [], pendingRests: [], turns: [] };
+  const req = async (text) => (await h(post({ text, context }))).json();
+  assert.equal((await req("今天跑了五公里")).cached, undefined);
+  assert.equal((await req("今天读了半小时书")).cached, undefined);
+  assert.equal((await req("今天跑了五公里")).cached, true); // 命中后刷新为最近使用
+  assert.equal((await req("今天有点焦虑，但还是去跑了五公里")).cached, undefined); // 满员插入第三条
+  assert.equal((await req("今天跑了五公里")).cached, true); // 最近使用过，保留
+  assert.equal((await req("今天读了半小时书")).cached, undefined); // 最久未用，已被淘汰
+});
+
+test("function cache：容量满时先清理过期项再淘汰", async () => {
+  let clock = 1_000_000;
+  const h = createHandler({ getToken: () => undefined, fetchImpl: stubFetch({}), logger: { info() {} }, cacheMax: 2, cacheTtl: 1000, now: () => clock });
+  const context = { today: TODAY, clientId: "visitor-sweep", openTasks: [], pendingEvents: [], pendingRests: [], turns: [] };
+  const req = async (text) => (await h(post({ text, context }))).json();
+  await req("今天跑了五公里"); // t0，最早写入
+  clock += 900;
+  await req("今天读了半小时书"); // t900，仍有效
+  clock += 50;
+  await req("今天跑了五公里"); // t950 命中，成为最近使用
+  clock += 150; // t1100：第一条已过期，第二条未过期
+  await req("今天有点焦虑，但还是去跑了五公里");
+  assert.equal((await req("今天读了半小时书")).cached, true); // 未过期项保留，没有被 LRU 误淘汰
+  assert.equal((await req("今天跑了五公里")).cached, undefined); // 过期项先被清理，重新抽取
+});
+
+test("function cache：不同访客不互相命中", async () => {
+  const h = createHandler({ getToken: () => undefined, fetchImpl: stubFetch({}), logger: { info() {} } });
+  const base = { today: TODAY, openTasks: [], pendingEvents: [], pendingRests: [], turns: [] };
+  const visitorA = { text: "今天跑了五公里", context: { ...base, clientId: "visitor-x" } };
+  const visitorB = { text: "今天跑了五公里", context: { ...base, clientId: "visitor-y" } };
+  assert.equal((await (await h(post(visitorA))).json()).cached, undefined);
+  assert.equal((await (await h(post(visitorA))).json()).cached, true);
+  assert.equal((await (await h(post(visitorB))).json()).cached, undefined);
+  assert.equal((await (await h(post(visitorB))).json()).cached, true);
+});
+
 test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环境", async () => {
   const calls = [];
   let eventPrompt = "";
