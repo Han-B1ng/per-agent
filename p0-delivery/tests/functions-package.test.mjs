@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { access, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const BUILD = path.join(ROOT, "scripts", "build-functions.mjs");
 const SHARED = ["agent-protocol.js", "date.js", "engine.js"];
+const MANIFEST = ".pe-functions-package.json";
 const TODAY = "2026-11-20";
 
 async function filesIn(dir) {
@@ -45,7 +46,7 @@ test("独立临时目录：生成 Function 包自包含，index.ts 与依赖可�
     execFileSync(process.execPath, [BUILD, "--out", out], { cwd: ROOT, stdio: "pipe" });
     const files = await filesIn(out);
     const names = files.map((file) => path.relative(out, file)).sort();
-    for (const expected of ["index.ts", "handler.mjs", "cloud-agents.mjs", "model.mjs", "prompt.mjs", "mock.mjs", ...SHARED]) {
+    for (const expected of ["index.ts", "handler.mjs", "cloud-agents.mjs", "model.mjs", "prompt.mjs", "mock.mjs", ...SHARED, MANIFEST]) {
       assert.ok(names.includes(expected), `missing ${expected}`);
     }
     for (const file of SHARED) {
@@ -106,4 +107,47 @@ test("独立临时目录：生成 Function 包自包含，index.ts 与依赖可�
   } finally {
     await rm(outer, { recursive: true, force: true });
   }
+});
+test("自定义 --out 非空且无生成清单时拒绝覆盖", async () => {
+  const outer = await mkdtemp(path.join(tmpdir(), "pe-functions-guard-"));
+  const out = path.join(outer, "custom");
+  try {
+    await mkdir(out);
+    await writeFile(path.join(out, "keep.txt"), "keep");
+    let error;
+    try {
+      execFileSync(process.execPath, [BUILD, "--out", out], { cwd: ROOT, stdio: "pipe" });
+    } catch (caught) {
+      error = caught;
+    }
+    assert.ok(error, "build should refuse a non-empty custom directory");
+    assert.match(String(error.stderr || error.message), /refusing to overwrite non-empty directory/);
+    assert.equal(await readFile(path.join(out, "keep.txt"), "utf8"), "keep");
+    assert.deepEqual((await readdir(out)).sort(), ["keep.txt"]);
+  } finally {
+    await rm(outer, { recursive: true, force: true });
+  }
+});
+
+test("已有生成包只替换生成文件并保留额外文件", async () => {
+  const outer = await mkdtemp(path.join(tmpdir(), "pe-functions-reuse-"));
+  const out = path.join(outer, "app");
+  try {
+    execFileSync(process.execPath, [BUILD, "--out", out], { cwd: ROOT, stdio: "pipe" });
+    await writeFile(path.join(out, "keep.txt"), "keep");
+    execFileSync(process.execPath, [BUILD, "--out", out], { cwd: ROOT, stdio: "pipe" });
+    assert.equal(await readFile(path.join(out, "keep.txt"), "utf8"), "keep");
+    const names = (await filesIn(out)).map((file) => path.relative(out, file)).sort();
+    for (const expected of ["index.ts", "handler.mjs", "cloud-agents.mjs", "model.mjs", "prompt.mjs", "mock.mjs", ...SHARED, MANIFEST, "keep.txt"]) {
+      assert.ok(names.includes(expected), `missing ${expected}`);
+    }
+  } finally {
+    await rm(outer, { recursive: true, force: true });
+  }
+});
+
+test("本地 Deno 入口使用生成包", async () => {
+  const source = await readFile(path.join(ROOT, "dev", "function-local.ts"), "utf8");
+  assert.match(source, /from "\.\.\/dist-functions\/handler\.mjs"/);
+  assert.ok(!source.includes("../functions/"));
 });
