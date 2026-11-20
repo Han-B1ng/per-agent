@@ -104,32 +104,50 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await context.close();
 }
 
-/* 24 input focus */
+/* 24 input focus: click only focuses; chat appears after first send */
 {
   const { context, page } = await newPage({ seed: seedLedger({ chatCount: 1 }) });
   await personal(page);
-  check("24 有历史时默认仍折叠对话", (await page.locator(".conversation").isVisible()) === false, await page.locator(".conversation").isVisible());
+  check("24 发送前聊天历史与快捷提示收起", (await page.locator(".conversation").isVisible()) === false && (await page.locator(".quick-actions").count()) === 0, "");
   const before = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
   await page.click("#entry");
   await page.waitForTimeout(350);
-  const after = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode }));
+  const clicked = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode, focused: document.activeElement?.id, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")) }));
   await shot(page, "24-input-focus.png");
-  check("24 输入聚焦展开最近对话且图表/输入框不动", (await page.locator(".conversation").isVisible()) && (await page.locator(".conversation-heading").isVisible()) && (await page.locator(".quick-actions").isVisible()) && after.mode === "market" && before.input === after.input && before.chart.y === after.chart.y && before.chart.height === after.chart.height, JSON.stringify({ before, after }));
-  await page.click(".conversation-heading button", { hasText: "收起对话" });
-  await page.waitForTimeout(250);
-  check("24 收起对话后恢复折叠", (await page.locator(".conversation").isVisible()) === false && (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "market", await page.locator(".conversation").isVisible());
+  check("24 点击输入框只改变聚焦样式", clicked.mode === "market" && clicked.focused === "entry" && clicked.collapsed && before.input === clicked.input && before.chart.y === clicked.chart.y && before.chart.height === clicked.chart.height, JSON.stringify({ before, clicked }));
+  await context.close();
+}
+
+/* 24b first send with no history */
+{
+  const { context, page } = await newPage({ seed: seedLedger({ chatCount: 0 }) });
+  await personal(page);
+  const before = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
+  await page.click("#entry");
+  await page.waitForTimeout(350);
+  await send(page, "今天跑了五公里。");
+  await page.waitForTimeout(450);
+  const sent = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), heading: Boolean(document.querySelector(".conversation-heading")), quick: Boolean(document.querySelector(".quick-actions")?.getBoundingClientRect().height), messages: document.querySelectorAll(".message").length, transcript: document.querySelector(".messages")?.textContent ?? "", chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
+  check("24 首次发送后展开消息与快捷提示", sent.conversation && sent.heading && sent.quick && sent.messages >= 2 && sent.transcript.includes("今天跑了五公里"), JSON.stringify(sent));
+  check("24 消息放得下时行情与输入框保持原位", sent.mode === "market" && before.input === sent.input && before.chart.y === sent.chart.y && before.chart.height === sent.chart.height, JSON.stringify({ before, sent }));
+  const aligned = await page.evaluate(() => { const c = document.querySelector(".conversation").getBoundingClientRect(); const i = document.querySelector(".composer").getBoundingClientRect(); return { cLeft: c.left, cWidth: c.width, iLeft: i.left, iWidth: i.width }; });
+  check("24 展开的对话与输入框左右对齐", Math.abs(aligned.cLeft - aligned.iLeft) < 1 && Math.abs(aligned.cWidth - aligned.iWidth) < 1, JSON.stringify(aligned));
   await context.close();
 }
 
 /* 720 short history */
 {
-  const { context, page } = await newPage({ seed: seedLedger({ chatCount: 1 }), width: 1440, height: 720 });
+  const { context, page } = await newPage({ seed: seedLedger({ chatCount: 0 }), width: 1440, height: 720 });
   await personal(page);
   const before = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
   await page.click("#entry");
   await page.waitForTimeout(350);
-  const after = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode, content: document.querySelector(".conversation").scrollHeight }));
-  check("720 有两条短消息时首次聚焦仍保持行情", after.mode === "market" && after.input === before.input && after.chart.height === before.chart.height, JSON.stringify({ before, after }));
+  const clicked = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode, focused: document.activeElement?.id, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")) }));
+  check("720 点击输入框只聚焦不展开聊天", clicked.mode === "market" && clicked.focused === "entry" && clicked.collapsed && before.input === clicked.input && before.chart.height === clicked.chart.height, JSON.stringify({ before, clicked }));
+  await send(page, "今天跑了五公里。");
+  await page.waitForTimeout(450);
+  const sent = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), messages: document.querySelectorAll(".message").length, chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
+  check("720 短消息放得下时保持行情", sent.mode === "market" && sent.conversation && sent.messages >= 2 && before.input === sent.input && before.chart.height === sent.chart.height, JSON.stringify({ before, sent }));
   await context.close();
 }
 
@@ -137,10 +155,16 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
 {
   const { context, page } = await newPage({ seed: seedLedger({ chatCount: 4 }) });
   await personal(page);
-  await page.click("#entry");
+  await send(page, "今天跑了五公里。");
   await page.waitForTimeout(500);
+  if ((await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) !== "focus") {
+    await send(page, "今天完成了数据库课设。");
+    await page.waitForTimeout(500);
+  }
   await shot(page, "02-conversation-focus.png");
-  check("02 实际溢出进入专注并保留顶部指数", (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus" && (await page.locator("#focus-quote").isVisible()) && (await page.locator("#view-toggle").isVisible()), "");
+  check("02 消息实际溢出进入专注并保留顶部指数", (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus" && (await page.locator("#focus-quote").isVisible()) && (await page.locator("#view-toggle").isVisible()), "");
+  const focusAlign = await page.evaluate(() => { const c = document.querySelector(".conversation").getBoundingClientRect(); const i = document.querySelector(".composer").getBoundingClientRect(); return { cLeft: c.left, cWidth: c.width, iLeft: i.left, iWidth: i.width }; });
+  check("02 专注对话与输入框左右对齐", Math.abs(focusAlign.cLeft - focusAlign.iLeft) < 1 && Math.abs(focusAlign.cWidth - focusAlign.iWidth) < 1, JSON.stringify(focusAlign));
   await page.fill("#entry", "多行输入第一行\n第二行\n第三行\n第四行");
   await page.waitForTimeout(300);
   await page.locator(".message-scroll").evaluate((node) => { node.scrollTop = node.scrollHeight; });
@@ -151,6 +175,69 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   });
   check("02 多行输入时最后一条消息不被输入框遮挡", focusSpace.messageBottom <= focusSpace.composerTop - 1, JSON.stringify(focusSpace));
   await context.close();
+}
+
+/* Focus sequence video: click → short send → overflow → return */
+{
+  const videoDir = path.join(ROOT, "dist", "focus-video");
+  await mkdir(videoDir, { recursive: true });
+  const { context, page } = await newPage({ seed: seedLedger({ chatCount: 0 }), width: 1440, height: 900, video: videoDir });
+  await personal(page);
+  await page.waitForTimeout(400);
+  await page.click("#entry");
+  await page.waitForTimeout(500);
+  const clicked = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
+  check("顺序：点击输入框只聚焦", clicked.mode === "market" && clicked.collapsed && clicked.focused === "entry", JSON.stringify(clicked));
+  await send(page, "今天读完了一章专业书。");
+  await page.waitForTimeout(600);
+  const first = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, conversation: Boolean(document.querySelector(".conversation")?.getBoundingClientRect().height), messages: document.querySelectorAll(".message").length, transcript: document.querySelector(".messages")?.textContent ?? "" }));
+  check("顺序：首次发送后展开消息且行情保持", first.mode === "market" && first.conversation && first.messages >= 2 && first.transcript.includes("今天读完了一章专业书"), JSON.stringify(first));
+  for (const line of ["晚上去操场散步了。", "睡前读书半小时。", "早上把书桌整理了一下。"]) {
+    if ((await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus") break;
+    await send(page, line);
+    await page.waitForTimeout(700);
+  }
+  const overflow = await page.evaluate(() => {
+    const market = getComputedStyle(document.querySelector(".market"));
+    const scroll = document.querySelector(".message-scroll");
+    const composer = document.querySelector(".composer").getBoundingClientRect();
+    return {
+      mode: document.querySelector(".workspace").dataset.mode,
+      quoteVisible: Boolean(document.querySelector("#focus-quote")?.getBoundingClientRect().width),
+      change: document.querySelector("#focus-change")?.textContent ?? "",
+      returnVisible: Boolean(document.querySelector("#view-toggle")?.getBoundingClientRect().width),
+      transform: market.transform,
+      opacity: market.opacity,
+      animation: getComputedStyle(document.querySelector(".chart")).animationName,
+      scrollOverflow: getComputedStyle(scroll).overflowY,
+      lastBottom: [...document.querySelectorAll(".message")].pop()?.getBoundingClientRect().bottom ?? 0,
+      composerTop: composer.top,
+      composerBottom: composer.bottom,
+      vh: innerHeight,
+    };
+  });
+  check("顺序：消息实际溢出才收起行情", overflow.mode === "focus" && overflow.quoteVisible && overflow.change.endsWith("%") && overflow.returnVisible && overflow.transform.includes("1.24") && parseFloat(overflow.opacity) < 0.2 && overflow.animation === "none", JSON.stringify(overflow));
+  check("顺序：溢出后消息区可独立滚动且输入框留底", overflow.scrollOverflow === "auto" && overflow.lastBottom <= overflow.composerTop - 1 && overflow.composerBottom <= overflow.vh, JSON.stringify(overflow));
+  await page.waitForTimeout(700);
+  const still = await page.evaluate(() => getComputedStyle(document.querySelector(".market")).transform);
+  await page.waitForTimeout(300);
+  const stillLater = await page.evaluate(() => getComputedStyle(document.querySelector(".market")).transform);
+  check("顺序：背景过渡结束后静止", still === stillLater && overflow.animation === "none", `${still} == ${stillLater}`);
+  await page.fill("#entry", "草稿保留");
+  const messages = await page.locator(".message").count();
+  await page.click("#view-toggle");
+  await page.waitForTimeout(800);
+  const returned = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), draft: document.querySelector("#entry").value, messages: document.querySelectorAll(".message").length }));
+  check("顺序：返回行情保留消息与草稿", returned.mode === "market" && returned.collapsed && returned.draft === "草稿保留" && returned.messages === messages, JSON.stringify({ returned, messages }));
+  const video = page.video();
+  await context.close();
+  if (video) {
+    const source = await video.path();
+    const dest = path.join(VIDEOS, "market-focus-sequence-raw-1440x900.webm");
+    await copyFile(source, dest);
+    await rm(videoDir, { recursive: true, force: true });
+    check("顺序：连续视频已生成", true, dest);
+  }
 }
 
 /* Pages and settings */

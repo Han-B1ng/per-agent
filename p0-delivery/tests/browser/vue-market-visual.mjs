@@ -55,6 +55,8 @@ for (const [width, height, scale] of [[1440, 900, 2], [1440, 720, 1], [390, 844,
   await page.waitForTimeout(350);
   const after = await page.evaluate(() => { const r = document.querySelector(".market").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, mode: document.querySelector(".workspace").dataset.mode }; });
   check(`视觉[${tag}] 首次聚焦图表不动`, before.x === after.x && before.y === after.y && before.w === after.w && before.h === after.h && after.mode === "market", JSON.stringify(after));
+  const clickOnly = await page.evaluate(() => ({ collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
+  check(`视觉[${tag}] 点击输入框只聚焦不展开聊天`, clickOnly.collapsed && clickOnly.focused === "entry", JSON.stringify(clickOnly));
   await shot(page, `vue-market-${tag}-input-focus`);
   await send(page, "今天跑了五公里。");
   await shot(page, `vue-market-${tag}-messages`);
