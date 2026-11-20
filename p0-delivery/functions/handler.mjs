@@ -11,6 +11,8 @@ import * as mock from "./mock.mjs";
 const QCA_ORIGIN = "https://api.qoder.com.cn";
 const POLL_MS = 700;
 const EXTRACT_BUDGET_MS = 20000;
+const CACHE_MAX = 100; // 抽取结果缓存默认上限：条数
+const CACHE_TTL = 10 * 60 * 1000; // 抽取结果缓存默认有效期：10 分钟
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 function json(status, obj) {
@@ -96,9 +98,9 @@ function mapError(e) {
   return { code: "network", message: "连不上模型服务，这条没有录入。可以重试或改用本地识别。" };
 }
 
-export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER_PAT"), fetchImpl = globalThis.fetch, origin = QCA_ORIGIN, now = () => Date.now(), logger = console } = {}) {
+export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER_PAT"), fetchImpl = globalThis.fetch, origin = QCA_ORIGIN, now = () => Date.now(), logger = console, cacheMax = CACHE_MAX, cacheTtl = CACHE_TTL } = {}) {
   const client = createCloudAgentsClient({ origin, getToken, fetchImpl });
-  const cache = new Map();
+  const cache = new Map(); // key -> {at, payload}；Map 迭代顺序即最近使用顺序
   const rate = new Map();
   let bootstrap = null;
 
@@ -108,6 +110,25 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
     if (!entry || at > entry.reset) { entry = { count: 0, reset: at + 60000 }; rate.set(ip, entry); }
     entry.count += 1;
     return entry.count > 30;
+  }
+
+  function cacheGet(key) {
+    const hit = cache.get(key);
+    if (!hit) return null;
+    if (now() - hit.at >= cacheTtl) { cache.delete(key); return null; }
+    cache.delete(key);
+    cache.set(key, hit); // 命中后移到队尾，保持最近使用顺序
+    return hit.payload;
+  }
+  function cacheSet(key, payload) {
+    cache.delete(key);
+    if (cache.size >= cacheMax) {
+      for (const [k, entry] of cache) {
+        if (now() - entry.at >= cacheTtl) cache.delete(k); // 先清理过期项
+      }
+      while (cache.size > 0 && cache.size >= cacheMax) cache.delete(cache.keys().next().value); // 再淘汰最久未使用
+    }
+    cache.set(key, { at: now(), payload });
   }
 
   async function findOwned(resource, match) {
@@ -193,8 +214,8 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
       const context = parsedContext.context;
       const useMock = body.useMock === true || !token;
       const key = JSON.stringify({ text, context, useMock });
-      const hit = context.clientId ? cache.get(key) : null;
-      if (hit && now() - hit.at < 600000) return respond(200, { ...hit.payload, cached: true });
+      const hit = context.clientId ? cacheGet(key) : null;
+      if (hit) return respond(200, { ...hit, cached: true });
       let result;
       if (useMock) {
         const m = mock.extract(text, context);
@@ -206,7 +227,7 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
         try { result = await qcaExtract(text, context); }
         catch (e) { result = { ok: false, error: mapError(e) }; }
       }
-      if (result.ok && context.clientId) cache.set(key, { at: now(), payload: result });
+      if (result.ok && context.clientId) cacheSet(key, result);
       const status = result.ok ? 200 : ({ timeout: 504, quota: 429, auth: 502, network: 502, bad_output: 502, rate_limited: 429, unavailable: 503 }[result.error.code] || 502);
       return respond(status, result);
     }

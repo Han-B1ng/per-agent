@@ -16,6 +16,9 @@ const MIME = {
   ".svg": "image/svg+xml", ".webm": "video/webm", ".ico": "image/x-icon", ".woff2": "font/woff2",
 };
 
+const CACHE_MAX = 100; // 抽取结果缓存默认上限：条数
+const CACHE_TTL = 10 * 60 * 1000; // 抽取结果缓存默认有效期：10 分钟
+
 // `..` 只算一层，所以 `..x` / `..abc` 这类合法文件名不能被误判为穿越。
 function isInside(root, target) {
   const rel = path.relative(root, target);
@@ -27,11 +30,10 @@ function notFound(res) {
   res.end("not found");
 }
 
-export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {}) {
+export function createApp({ env = {}, staticRoot = path.join(REPO, "dist"), cacheMax = CACHE_MAX, cacheTtl = CACHE_TTL, now = () => Date.now() } = {}) {
   const hasKey = Boolean(env.MODEL_API_KEY);
   const rate = new Map(); // ip -> {count, reset}
-  const cache = new Map(); // key -> {at, payload}
-  const CACHE_TTL = 10 * 60 * 1000;
+  const cache = new Map(); // key -> {at, payload}；Map 迭代顺序即最近使用顺序
   const RATE_MAX = 30, RATE_WINDOW = 60 * 1000;
 
   function rateLimited(ip) {
@@ -47,9 +49,21 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {
   }
   function cacheGet(key) {
     const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < CACHE_TTL) return hit.payload;
-    if (hit) cache.delete(key);
-    return null;
+    if (!hit) return null;
+    if (now() - hit.at >= cacheTtl) { cache.delete(key); return null; }
+    cache.delete(key);
+    cache.set(key, hit); // 命中后移到队尾，保持最近使用顺序
+    return hit.payload;
+  }
+  function cacheSet(key, payload) {
+    cache.delete(key);
+    if (cache.size >= cacheMax) {
+      for (const [k, entry] of cache) {
+        if (now() - entry.at >= cacheTtl) cache.delete(k); // 先清理过期项
+      }
+      while (cache.size > 0 && cache.size >= cacheMax) cache.delete(cache.keys().next().value); // 再淘汰最久未使用
+    }
+    cache.set(key, { at: now(), payload });
   }
 
   async function serveStatic(res, root, urlPath) {
@@ -124,7 +138,7 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist") } = {
     } else {
       result = await model.extract(text, context, env);
     }
-    if (result.ok) cache.set(key, { at: Date.now(), payload: result });
+    if (result.ok) cacheSet(key, result);
     const status = result.ok ? 200 : ({ timeout: 504, quota: 429, auth: 502, network: 502, bad_output: 502, rate_limited: 429, unavailable: 503 }[result.error.code] || 502);
     sendJson(res, status, result);
   }
