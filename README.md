@@ -1,57 +1,93 @@
-# 个人成长指数 · 队友对接
+# 个人成长指数 · Personal Economy
 
-用户从「行情」发一句话，模型提取记录或任务。记录保存在浏览器，计分引擎算出指数和周 K。用户可在「目标中心」查看未完成与已完成项，在「成长记录」查原文、处理待确认、修正记录和看本周复盘。
+个人成长指数是一款以对话为入口的个人成长记录工具。你可以记录已经发生的事、整理目标和回顾一周的变化。应用把行为、目标进展与休息记录汇总为个人指数和周 K 线，每次变化都可以追溯到对应日期和记录。情绪单独保留，便于回顾。
 
-## 本地启动
+## 功能
 
-使用 Node.js 22，建议 22.13 及以上。进入仓库后执行：
+| 页面 | 可以做什么 |
+| --- | --- |
+| **行情** | 查看个人指数、本周开高低和周 K 线。点击 K 线查看计算明细，也可以直接在页面底部发消息记录。 |
+| **目标中心** | 创建带到期日的目标，查看未完成和已完成事项，追踪进度并标记完成。 |
+| **成长记录** | 按日期、类型和关键词查找记录，查看原文与状态，处理待确认项、修正或撤销记录。切换到「本周」可回顾指数变化、贡献与完成项。 |
+
+应用内置独立的样例账本。打开后可以先看「样例」，再切到「我的」，发送「今天有点焦虑，但还是去跑了五公里」。然后点开周 K 明细，查看情绪和行为如何分别记录。
+
+## 快速开始
+
+需要 Node.js 22（建议 22.13 或以上）和 npm。
 
 ```sh
-cd p0-delivery
+git clone https://github.com/Han-B1ng/per-agent.git
+cd per-agent/p0-delivery
 npm ci
 npm run build
 npm start
 ```
 
-打开 [本地页面](http://127.0.0.1:8123/)。默认使用本地 Mock，方便体验完整操作。开发 Vue 页面时，保留后端，再开一个终端进入同一目录执行 `npm run dev`，打开 [Vite 开发页](http://localhost:5173/)。Vite 会把 `/api` 转发到 8123。
+打开 [http://127.0.0.1:8123/](http://127.0.0.1:8123/)。默认使用本地 Mock，无需模型密钥。
 
-第一次试玩可以发「今天有点焦虑，但还是去跑了五公里」。点周 K 查看情绪和行为的贡献，再到成长记录查原文。接着新增两个目标、完成其中一个，在目标中心和本周复盘核对同一笔完成记录。
+### 前端开发
 
-## 去哪里改
+让 Node 服务继续运行。在另一个终端进入 `p0-delivery/`，运行 `npm run dev`，打开 [http://localhost:5173/](http://localhost:5173/)。Vite 将 `/api` 请求转发到本地 Node 服务，修改 Vue 文件后可在浏览器中即时查看。
 
-| 工作 | 入口 |
+## 工作方式
+
+1. 用户在行情页输入一句话。抽取服务将文本转换为回复和结构化操作。
+2. 应用校验操作并写入浏览器账本。低置信度记录先进入待确认状态。
+3. 计分引擎用已生效记录重算指数、周 K 和明细。目标中心与成长记录读取同一份账本。
+
+前端使用 **Vue 3、TypeScript 和 Vite**，周 K 使用 **Canvas** 绘制。个人账本通过 **localStorage** 保存在当前浏览器。启用真实模型时，消息和抽取所需的上下文会发送给配置的模型服务。
+
+## 项目结构
+
+| 目录 | 职责 |
 | --- | --- |
-| 页面壳、侧栏和页面切换 | `p0-delivery/frontend/src/App.vue` 与 `components/AppSidebar.vue` |
-| 行情、对话、抽屉及页面样式 | `frontend/src/components/` 与 `frontend/src/styles.css` |
-| 页面状态与写入协调 | `frontend/src/composables/useWorkspace.ts` |
-| 账本、存量迁移、计分和画图 | `web/ledger.js`、`store.js`、`engine.js`、`chart.js` |
-| 本周复盘 | `weekly-review/src/`，由 `frontend/src/components/RecordsView.vue` 挂载 |
-| 本地模型代理和 Mock | `server/` |
-| Qoder Sites 真实模型抽取 | `functions/`，入口为 `functions/index.ts` |
-| 回归测试与桌面动效基线 | `tests/` 与 `reference-sample/` |
+| [`p0-delivery/frontend/`](p0-delivery/frontend/) | 页面、组件、样式和应用状态 |
+| [`p0-delivery/web/`](p0-delivery/web/) | 账本、存储迁移、计分引擎和图表绘制 |
+| [`p0-delivery/weekly-review/`](p0-delivery/weekly-review/) | 周复盘的数据派生和展示 |
+| [`p0-delivery/server/`](p0-delivery/server/) | 本地静态服务、Mock 和模型代理 |
+| [`p0-delivery/functions/`](p0-delivery/functions/) | Qoder Sites Function 和 Cloud Agents 调用 |
+| [`p0-delivery/tests/`](p0-delivery/tests/) | 引擎、账本、接口和浏览器回归 |
+| [`docs/`](docs/) | 产品设计、算法规格和决策记录 |
 
-表中短路径均相对于 `p0-delivery/`。设计以 [工作台设计稿](docs/design/product-workspace-v0.2-proposal.md) 为参考，业务规则以 [算法规格](docs/design/agent-engine-spec-v0.1.md) 和 [决策记录](docs/decisions/decision-log.md) 为准。涉及计分或日期规则的变更，同步更新这两处。
+## 模型配置与部署
 
-## 改完怎么验
+| 环境 | 抽取方式 | 接口 |
+| --- | --- | --- |
+| 本地默认 | Node 服务内置 Mock | `/api/health`、`/api/extract` |
+| 本地真实模型 | Node 服务调用 OpenAI 兼容端点 | `/api/health`、`/api/extract` |
+| Qoder Sites | 同源 Function 调用 Qoder Cloud Agents | `/functions/v1/app/api/health`、`/functions/v1/app/api/extract` |
 
-在 `p0-delivery/` 执行：
+在本地使用真实模型时，进入 `p0-delivery/`，复制 [`.env.example`](p0-delivery/.env.example) 为 `.env`，填写 `MODEL_API_KEY`。按供应商要求配置 `MODEL_BASE_URL` 和 `MODEL_NAME`，然后用以下命令启动服务。
+
+```sh
+node --env-file=.env server/index.mjs
+```
+
+部署到 Qoder Sites 时，以 `p0-delivery/` 为项目目录，运行 `npm run build`。静态资源位于 `dist/`，Function 入口为 [`functions/index.ts`](p0-delivery/functions/index.ts)。由 Sites 的 `qoder` 后端在服务端提供 `QODER_PAT`。模型凭据应保存在服务端环境中。
+
+## 测试
+
+在 `p0-delivery/` 执行。首次运行浏览器测试前安装 Chromium 和录屏组件。
 
 ```sh
 npm run build
 npm test
 npm run test:install
-npm run test:browser
-npm run test:v02
-npm run test:visual
-npm run test:sample
 ```
 
-`test:install` 安装 Playwright 的浏览器和录屏组件，本机装过可跳过。浏览器测试自托管，截图、录屏和断言写到本地 `assets/`。周复盘的独立测试在 `weekly-review/` 执行 `npm ci` 后运行 `npm run test:all`。PR 写清测试命令和实际结果，交互变更附截图或录屏，协作约定见 [AGENTS.md](AGENTS.md)。
+| 命令 | 覆盖范围 |
+| --- | --- |
+| `npm run test:browser` | 核心流程、待确认、持久化和模型降级 |
+| `npm run test:v02` | 三个页面之间的账本联动 |
+| `npm run test:visual` | 行情布局、不同视口和对话动效 |
+| `npm run test:sample` | 与现有桌面交互样板的对照 |
 
-## 对接 Qoder Sites
+周复盘另有独立测试。进入 `p0-delivery/weekly-review/`，执行 `npm ci` 和 `npm run test:all`。真实模型调用需在目标部署环境中单独验证。
 
-用 Qoder CN 打开原有站点工作目录 `p0-delivery/`。运行 `npm run build` 后，静态发布目录是 `dist/`，Function 源码目录是 `functions/`。线上通过同源 `/functions/v1/app/api/health` 和 `/functions/v1/app/api/extract` 访问 Function，平台的 `qoder` 后端提供服务端 `QODER_PAT`。本地 Node 使用 `/api/`。个人账本保存在浏览器，调用模型时会发送当前消息和抽取所需的有限上下文。
+## 项目文档
 
-当前仓库已包含 Cloud Agents 初始化冲突修复。最近一次验收记录里，Qoder Sites 因平台 `ENOSPC` 未能发布新版 Function。恢复后重新发布并发送一条合成测试消息，核对真实抽取回包和周 K 明细，再更新验收状态。
-
-旧原型、独立验收截图、录屏和交付记录可从 [整理前版本](https://github.com/Han-B1ng/per-agent/tree/3948e1027068cea38ca25c851de9f35b4ea0e3a4) 查回。
+- [产品与工作台设计](docs/design/product-workspace-v0.2-proposal.md)
+- [事件、目标与指数算法](docs/design/agent-engine-spec-v0.1.md)
+- [产品与算法决策记录](docs/decisions/decision-log.md)
+- [贡献与协作约定](AGENTS.md)
