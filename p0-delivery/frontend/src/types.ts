@@ -1,4 +1,5 @@
 export type Page = "market" | "goals" | "records";
+export type Theme = "dark" | "light" | "midnight";
 export type DataView = "sample" | "personal";
 export type DrawerMode = "week" | "goal" | "record" | "settings";
 export type ModelState = "model" | "mock" | "degraded" | "offline";

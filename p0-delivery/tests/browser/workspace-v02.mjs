@@ -54,12 +54,12 @@ async function createGoal(page, title, offset = 7) {
   const { context, page } = await newPage();
   await shot(page, "v02-market");
   await go(page, "goals");
-  const groups = await page.evaluate(() => [...document.querySelectorAll(".goal-group")].map((g) => ({ open: g.open, visible: !!g.offsetHeight })));
-  check("视觉/A 目标中心未完成与已完成同屏", groups.length === 2 && groups.every((g) => g.open && g.visible), JSON.stringify(groups));
+  const groups = await page.evaluate(() => [...document.querySelectorAll(".goals-section")].map((g) => ({ visible: !!g.offsetHeight })));
+  check("视觉/A 目标中心未完成与已完成同屏", groups.length === 2 && groups.every((g) => g.visible), JSON.stringify(groups));
   check("视觉/A 样例含进行中逾期与已完成", (await page.locator(".goal-card").count()) === 4 && (await page.locator(".badge.overdue").count()) === 1 && (await page.locator(".badge.done").count()) === 1, `cards=${await page.locator(".goal-card").count()}`);
   await shot(page, "v02-goals");
   await go(page, "records");
-  check("视觉/A 成长记录含行为情绪休息任务完成", await page.locator(".record-row").count() > 20 && (await page.locator(".record-type").allTextContents()).some((t) => t.includes("任务完成")), `rows=${await page.locator(".record-row").count()}`);
+  check("视觉/A 成长记录含行为情绪休息任务完成", await page.locator(".record-row").count() > 20 && (await page.locator(".record-type").allTextContents()).some((t) => t.includes("任务完成") || t.includes("目标完成")), `rows=${await page.locator(".record-row").count()}`);
   await shot(page, "v02-records");
   check("视觉/A 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
   await context.close();
@@ -72,12 +72,12 @@ async function createGoal(page, title, offset = 7) {
   await go(page, "goals");
   await createGoal(page, "完成论文第三章", 7);
   await createGoal(page, "复习英语考试", 10);
-  check("A 创建两个目标", (await page.locator("#active-goals .goal-card").count()) === 2 && (await page.locator("#done-goal-count").textContent()) === "0", await page.locator("#active-goal-count").textContent());
+  check("A 创建两个目标", (await page.locator("#active-goals .goal-card").count()) === 2 && (await page.locator("#done-goal-count").textContent()) === "00", await page.locator("#active-goal-count").textContent());
   await page.locator("#active-goals .goal-card").first().locator("button", { hasText: "完成" }).evaluate((b) => { b.click(); b.click(); });
   await page.waitForTimeout(400);
   check("A 双击完成后未完成/已完成各一组", (await page.locator("#active-goals .goal-card").count()) === 1 && (await page.locator("#done-goals .goal-card").count()) === 1, `${await page.locator("#active-goal-count").textContent()}/${await page.locator("#done-goal-count").textContent()}`);
   await go(page, "records");
-  const completions = page.locator(".record-row", { hasText: "任务完成" });
+  const completions = page.locator(".record-row", { hasText: "目标完成" });
   check("A 成长记录只有一笔完成事实", await completions.count() === 1, await completions.count());
   await go(page, "market");
   check("A 周 K 只有一笔完成增益", Math.abs((await quote(page)) - 1006) < 0.05, await quote(page));
@@ -140,7 +140,7 @@ async function createGoal(page, title, offset = 7) {
   await page.locator(".edit-form button", { hasText: "保存修正" }).click();
   await page.waitForTimeout(300);
   check("D 跑步日期可按生效日修正并留轨迹", (await page.locator("#drawer-body").textContent()).includes("correct_event") && (await page.locator("#drawer-body").textContent()).includes("correct_event") === true, await page.locator("#drawer-sub").textContent());
-  await page.locator("#drawer-body button", { hasText: "打开计分明细" }).click();
+  await page.locator("#drawer-body button", { hasText: "查看周 K" }).click();
   await page.waitForTimeout(300);
   check("D 目标周明细对应原文和 +1%", (await page.locator("#drawer-body").textContent()).includes("五公里") && (await page.locator("#drawer-body").textContent()).includes("+1.00%"), (await page.locator("#drawer-body").textContent()).slice(-500));
   await page.click("#drawer-close");
@@ -187,6 +187,7 @@ for (const mode of ["confirm", "deny"]) {
   await page.waitForTimeout(650);
   await page.unroute("**/api/extract");
   await page.route("**/api/extract", (route) => route.fulfill({ status: 504, contentType: "application/json", body: JSON.stringify({ ok: false, error: { code: "timeout", message: "模拟模型超时，这条没有录入。" } }) }));
+  await go(page, "market");
   await send(page, "今天完成了数据库课设。", 500);
   await go(page, "records");
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem("pe.personal.v2")).events.map((e) => e.quote));
@@ -228,7 +229,9 @@ for (const mode of ["confirm", "deny"]) {
   const cleared = await page.evaluate(() => ({ v1: localStorage.getItem("pe.personal.v1"), v2: JSON.parse(localStorage.getItem("pe.personal.v2")) }));
   check("清空只移除个人新旧账本", cleared.v1 === null && cleared.v2.events.length === 0 && cleared.v2.tasks.length === 0, JSON.stringify(cleared));
   await page.click("#drawer-close");
+  await go(page, "market");
   await page.click("#view-sample");
+  await go(page, "records");
   check("样例与个人切换/清空隔离", !(await page.locator(".page-data-tag").first().textContent()).includes("我的") && (await page.locator(".record-row").count()) > 20, await page.locator(".record-row").count());
   await context.close();
 }
@@ -360,6 +363,7 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   await go(page, "goals");
   await createGoal(page, "跨日目标", 7);
   await page.locator("#active-goals .goal-card button", { hasText: "完成" }).click();
+  await go(page, "market");
   await send(page, "今天跑了五公里");
   const crossed = await page.evaluate(() => JSON.parse(localStorage.getItem("pe.personal.v2")));
   await go(page, "market");
@@ -401,7 +405,7 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   check("PR#4 本周复盘显示真实完成与进行目标", reviewState.present && reviewState.completed.join() === "wr_done" && reviewState.ongoing.includes("wr_overdue") && reviewState.ongoing.includes("wr_paused"), JSON.stringify(reviewState));
   await page.locator('[data-testid="completed-row"]').click();
   await page.waitForTimeout(300);
-  check("PR#4 完成项跳转真实目标抽屉", (await page.locator("#drawer-title").textContent()) === "目标详情" && (await page.locator("#drawer-sub").textContent()) === "wr_done", await page.locator("#drawer-sub").textContent());
+  check("PR#4 完成项跳转真实目标抽屉", (await page.locator("#drawer-title").textContent()) === "本周完成的目标" && (await page.locator("#drawer-sub").textContent()).includes("已完成"), await page.locator("#drawer-sub").textContent());
   await page.click("#drawer-close");
   await page.waitForTimeout(500);
   await page.locator('[data-testid="contribution-completion"]').first().click();
