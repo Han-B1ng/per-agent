@@ -156,6 +156,61 @@ test("缓存：同 text+context 第二次 cached:true", async () => {
   s.close();
 });
 
+test("缓存：TTL 到期后重新抽取", async () => {
+  let clock = 1_000_000;
+  const s = await listen(createApp({ env: {}, staticRoot: fixture(), cacheTtl: 1000, now: () => clock }));
+  const body = { text: "今天读了半小时书", context: ctx() };
+  const first = await post(base(s), body);
+  assert.equal(first.json.cached, undefined);
+  const second = await post(base(s), body);
+  assert.equal(second.json.cached, true);
+  clock += 1001;
+  const third = await post(base(s), body);
+  assert.equal(third.json.ok, true);
+  assert.equal(third.json.cached, undefined);
+  s.close();
+});
+
+test("缓存：超过容量时保留最近使用项，淘汰最久未使用项", async () => {
+  const s = await listen(createApp({ env: {}, staticRoot: fixture(), cacheMax: 2 }));
+  const req = (text) => post(base(s), { text, context: ctx() });
+  assert.equal((await req("今天跑了五公里")).json.cached, undefined);
+  assert.equal((await req("今天读了半小时书")).json.cached, undefined);
+  assert.equal((await req("今天跑了五公里")).json.cached, true); // 命中后刷新为最近使用
+  assert.equal((await req("今天有点焦虑，但还是去跑了五公里")).json.cached, undefined); // 满员插入第三条
+  assert.equal((await req("今天跑了五公里")).json.cached, true); // 最近使用过，保留
+  assert.equal((await req("今天读了半小时书")).json.cached, undefined); // 最久未用，已被淘汰
+  s.close();
+});
+
+test("缓存：容量满时先清理过期项再淘汰", async () => {
+  let clock = 1_000_000;
+  const s = await listen(createApp({ env: {}, staticRoot: fixture(), cacheMax: 2, cacheTtl: 1000, now: () => clock }));
+  const req = (text) => post(base(s), { text, context: ctx() });
+  await req("今天跑了五公里"); // t0，最早写入
+  clock += 900;
+  await req("今天读了半小时书"); // t900，仍有效
+  clock += 50;
+  await req("今天跑了五公里"); // t950 命中，成为最近使用
+  clock += 150; // t1100：第一条已过期，第二条未过期
+  await req("今天有点焦虑，但还是去跑了五公里");
+  assert.equal((await req("今天读了半小时书")).json.cached, true); // 未过期项保留，没有被 LRU 误淘汰
+  assert.equal((await req("今天跑了五公里")).json.cached, undefined); // 过期项先被清理，重新抽取
+  s.close();
+});
+
+test("缓存：不同访客不互相命中", async () => {
+  const s = await listen(createApp({ env: {}, staticRoot: fixture() }));
+  const text = "今天跑了五公里";
+  const visitorA = { text, context: ctx({ clientId: "visitor-a" }) };
+  const visitorB = { text, context: ctx({ clientId: "visitor-b" }) };
+  assert.equal((await post(base(s), visitorA)).json.cached, undefined);
+  assert.equal((await post(base(s), visitorA)).json.cached, true);
+  assert.equal((await post(base(s), visitorB)).json.cached, undefined);
+  assert.equal((await post(base(s), visitorB)).json.cached, true);
+  s.close();
+});
+
 test("静态：/ 200 html；穿越 404；未知 404", async () => {
   const s = await listen(createApp({ env: {}, staticRoot: fixture() }));
   const root = await fetch(base(s) + "/");
