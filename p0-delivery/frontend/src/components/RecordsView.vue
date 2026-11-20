@@ -5,6 +5,7 @@ import type { TimelineRow } from "../types";
 import { weekStartOf } from "../core";
 import { deriveWeeklyReview, listReviewWeeks } from "../../../weekly-review/src/index";
 import WeeklyReviewPanel from "./WeeklyReviewPanel.vue";
+import WeekPicker from "./WeekPicker.vue";
 
 const ws = inject<Workspace>("workspace")!;
 const { records, timeline, filters, editable, recordTaskId, linkedTaskTitle, lastExtract, lastFailed, result, clearFilters, confirmPending, denyPending, openEntity, openWeekForDate, retryFailed, focusComposer } = ws;
@@ -81,7 +82,7 @@ function openRow(row: TimelineRow) {
     <template v-if="recordsTab === 'week'">
       <WeeklyReviewPanel :review="review" @open-goal="openReviewGoal" @open-week="openReviewWeek">
         <template #week-controls>
-          <label class="review-week-picker"><span>周次</span><select id="review-week-select" v-model="reviewWeekStart"><option value="">本周</option><option v-for="week in reviewWeeks" :key="week.weekKey" :value="week.weekStart">{{ week.weekStart }} ~ {{ week.weekEnd }}</option></select></label>
+          <WeekPicker v-model="reviewWeekStart" :weeks="reviewWeeks" />
         </template>
       </WeeklyReviewPanel>
     </template>
