@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T11:05:22.218Z",
+  "generatedAt": "2026-11-20T11:19:33.720Z",
   "today": "2026-11-20",
   "results": [
     {
@@ -31,6 +31,11 @@
       "name": "02 实际溢出进入专注并保留顶部指数",
       "pass": true,
       "detail": ""
+    },
+    {
+      "name": "02 多行输入时最后一条消息不被输入框遮挡",
+      "pass": true,
+      "detail": "{\"messageBottom\":579.5,\"composerTop\":768,\"extra\":\"60px\"}"
     },
     {
       "name": "03 目标中心同屏未完成与已完成",
@@ -88,9 +93,19 @@
       "detail": ""
     },
     {
+      "name": "待确认：抽屉空日期提示填写并保持 pending",
+      "pass": true,
+      "detail": "请填写生效日期；这条仍待确认。"
+    },
+    {
       "name": "待确认：抽屉拒绝未来日期并保持 pending",
       "pass": true,
       "detail": "生效日期不能晚于今天；这条仍待确认。"
+    },
+    {
+      "name": "待确认：行内空日期提示填写并保持 pending",
+      "pass": true,
+      "detail": "请填写生效日期；这条仍待确认。"
     },
     {
       "name": "待确认：行内拒绝未来日期并保持 pending",
@@ -105,7 +120,7 @@
     {
       "name": "核心流程：新增目标落账",
       "pass": true,
-      "detail": "task_mwovhgvf_b"
+      "detail": "task_mwovzpvo_b"
     },
     {
       "name": "弹窗：焦点进入、Esc 优先取消并回到触发按钮",

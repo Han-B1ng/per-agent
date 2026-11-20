@@ -141,6 +141,15 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await page.waitForTimeout(500);
   await shot(page, "02-conversation-focus.png");
   check("02 实际溢出进入专注并保留顶部指数", (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "focus" && (await page.locator("#focus-quote").isVisible()) && (await page.locator("#view-toggle").isVisible()), "");
+  await page.fill("#entry", "多行输入第一行\n第二行\n第三行\n第四行");
+  await page.waitForTimeout(300);
+  await page.locator(".message-scroll").evaluate((node) => { node.scrollTop = node.scrollHeight; });
+  await page.waitForTimeout(250);
+  const focusSpace = await page.evaluate(() => {
+    const last = [...document.querySelectorAll(".messages .message")].pop();
+    return { messageBottom: last?.getBoundingClientRect().bottom ?? 0, composerTop: document.querySelector(".composer")?.getBoundingClientRect().top ?? 0, extra: getComputedStyle(document.documentElement).getPropertyValue("--composer-extra").trim() };
+  });
+  check("02 多行输入时最后一条消息不被输入框遮挡", focusSpace.messageBottom <= focusSpace.composerTop - 1, JSON.stringify(focusSpace));
   await context.close();
 }
 
@@ -251,12 +260,20 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await pendingRow.click();
   await page.waitForTimeout(300);
   await shot(page, "09-record-pending.png");
+  await page.locator(".edit-form input[type=date]").first().fill("");
+  await page.locator("#drawer-body button", { hasText: "按此日期确认" }).click();
+  await page.waitForTimeout(250);
+  check("待确认：抽屉空日期提示填写并保持 pending", (await state(page)).events.some((event) => event.quote.includes("前阵子") && event.status === "pending") && (await page.locator("#pending-error").textContent()).includes("请填写"), await page.locator("#pending-error").textContent());
   await page.locator(".edit-form input[type=date]").first().fill(day(1));
   await page.locator("#drawer-body button", { hasText: "按此日期确认" }).click();
   await page.waitForTimeout(300);
   check("待确认：抽屉拒绝未来日期并保持 pending", (await state(page)).events.some((event) => event.quote.includes("前阵子") && event.status === "pending") && (await page.locator("#pending-error").isVisible()), await page.locator("#pending-error").textContent());
   await page.click("#drawer-close");
   await page.waitForTimeout(200);
+  await pendingRow.locator(".pending-editor input").fill("");
+  await pendingRow.locator(".pending-editor button", { hasText: "确认" }).click();
+  await page.waitForTimeout(250);
+  check("待确认：行内空日期提示填写并保持 pending", (await state(page)).events.some((event) => event.quote.includes("前阵子") && event.status === "pending") && (await pendingRow.locator(".pending-error").textContent()).includes("请填写"), await pendingRow.locator(".pending-error").textContent());
   await pendingRow.locator(".pending-editor input").fill(day(1));
   await pendingRow.locator(".pending-editor button", { hasText: "确认" }).click();
   await page.waitForTimeout(250);

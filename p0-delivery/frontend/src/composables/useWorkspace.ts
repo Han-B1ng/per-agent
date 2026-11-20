@@ -34,6 +34,7 @@ export function useWorkspace() {
   const focusMode = ref(false);
   const focusLocked = ref(false);
   const conversationOpen = ref(false);
+  const composerExtra = ref(0);
   const completionRequest = ref<{ id: string; title: string } | null>(null);
   const lastCompletedGoalId = ref("");
   const busy = ref(false);
@@ -459,8 +460,10 @@ export function useWorkspace() {
     const rest = kind === "rest" ? personal.value.rests.find((entry) => entry.id === id && entry.status === "pending" && entry.deletedAt == null) : null;
     const event = kind === "event" ? personal.value.events.find((entry) => entry.id === id && entry.status === "pending" && entry.deletedAt == null) : null;
     if (!rest && !event) return { ok: false, message: "这条记录已处理或不存在；账本没有变化。" };
-    const effectiveDate = date || (rest ? rest.date : event!.occurredAt);
-    if (!realDate(effectiveDate) || effectiveDate > today.value) {
+    const effectiveDate = date === undefined ? (rest ? rest.date : event!.occurredAt) : date;
+    if (!effectiveDate) return { ok: false, message: "请填写生效日期；这条仍待确认。" };
+    if (!realDate(effectiveDate)) return { ok: false, message: "生效日期格式无效；这条仍待确认。" };
+    if (effectiveDate > today.value) {
       return { ok: false, message: "生效日期不能晚于今天；这条仍待确认。" };
     }
     const write = commit([{ op: kind === "rest" ? "confirm_rest" : "confirm_event", id, ...(kind === "rest" ? { date: effectiveDate } : { occurredAt: effectiveDate }) } as ExtractItem]);
@@ -521,7 +524,7 @@ export function useWorkspace() {
   }
 
   return {
-    today, personal, sample, view, page, theme, focusMode, focusLocked, conversationOpen, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
+    today, personal, sample, view, page, theme, focusMode, focusLocked, conversationOpen, composerExtra, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
     clearArmed, goalFormOpen, recordTaskId, composerFocusSignal, lastExtract, lastFailed, drawer, filters,
     records, editable, result, goals, timeline, hasMessages, currentWeek, selectedGoal, selectedRecord,
     selectedTimelineRow, auditHistory, linkedTaskTitle, SAMPLE_META,

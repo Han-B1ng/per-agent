@@ -1,11 +1,19 @@
 <script setup lang="ts">
-import { computed, inject, nextTick, onMounted, ref, watch } from "vue";
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import type { Workspace } from "../composables/useWorkspace";
 
 const ws = inject<Workspace>("workspace")!;
-const { draft, busy, focusMode, conversationOpen, modelState, sendText, composerFocusSignal, openConversation, openGoalForm, openFirstActiveGoal } = ws;
+const { draft, busy, focusMode, conversationOpen, composerExtra, modelState, sendText, composerFocusSignal, openConversation, openGoalForm, openFirstActiveGoal } = ws;
 const entry = ref<HTMLTextAreaElement | null>(null);
+const composer = ref<HTMLFormElement | null>(null);
 const composing = ref(false);
+let resizeObserver: ResizeObserver | null = null;
+function syncComposerHeight() {
+  const height = composer.value?.offsetHeight ?? 54;
+  const extra = Math.max(0, height - 54);
+  composerExtra.value = extra;
+  document.documentElement.style.setProperty("--composer-extra", `${extra}px`);
+}
 const privacy = computed(() => (modelState.value === "model" ? "内容会发给模型服务 · 记录仅存本机" : "本地识别 · 记录仅存本机"));
 const canSend = computed(() => draft.value.trim().length > 0 && !busy.value);
 
@@ -43,6 +51,14 @@ watch(draft, watchDraft);
 watch(composerFocusSignal, () => nextTick(() => entry.value?.focus({ preventScroll: true })));
 onMounted(() => {
   if (conversationOpen.value) nextTick(() => entry.value?.focus({ preventScroll: true }));
+  resizeObserver = new ResizeObserver(syncComposerHeight);
+  if (composer.value) resizeObserver.observe(composer.value);
+  nextTick(syncComposerHeight);
+});
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  composerExtra.value = 0;
+  document.documentElement.style.removeProperty("--composer-extra");
 });
 </script>
 
@@ -53,7 +69,7 @@ onMounted(() => {
       <button type="button" @click="openGoalForm">新增目标</button>
       <button type="button" @click="openFirstActiveGoal">完成目标</button>
     </div>
-    <form class="composer" @submit.prevent="submit" @click="focusEntry">
+    <form ref="composer" class="composer" @submit.prevent="submit" @click="focusEntry">
       <label class="sr-only" for="entry">输入消息</label>
       <textarea id="entry" ref="entry" v-model="draft" rows="1" maxlength="1500" placeholder="说说今天发生的事…" aria-describedby="compose-hint" @focus="openConversation" @input="autoGrow" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
       <button class="send" type="submit" aria-label="发送" :disabled="!canSend"><span aria-hidden="true">↑</span></button>
