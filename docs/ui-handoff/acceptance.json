@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T10:25:47.138Z",
+  "generatedAt": "2026-11-20T10:55:50.011Z",
   "today": "2026-11-20",
   "results": [
     {
@@ -8,9 +8,24 @@
       "detail": ""
     },
     {
-      "name": "24 输入聚焦展开最近对话且图表不动",
+      "name": "24 有历史时默认仍折叠对话",
       "pass": true,
-      "detail": "market"
+      "detail": "false"
+    },
+    {
+      "name": "24 输入聚焦展开最近对话且图表/输入框不动",
+      "pass": true,
+      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828},\"after\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828,\"mode\":\"market\"}}"
+    },
+    {
+      "name": "24 收起对话后恢复折叠",
+      "pass": true,
+      "detail": "false"
+    },
+    {
+      "name": "720 有两条短消息时首次聚焦仍保持行情",
+      "pass": true,
+      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648},\"after\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648,\"mode\":\"market\",\"content\":160}}"
     },
     {
       "name": "02 实际溢出进入专注并保留顶部指数",
@@ -38,6 +53,21 @@
       "detail": ""
     },
     {
+      "name": "主题：晨雾切换并重绘 Canvas",
+      "pass": true,
+      "detail": "{\"light\":{\"theme\":\"light\",\"bg\":\"rgb(243, 243, 239)\",\"stored\":\"light\"},\"changed\":true}"
+    },
+    {
+      "name": "主题：刷新保留选择",
+      "pass": true,
+      "detail": "light"
+    },
+    {
+      "name": "主题：午夜蓝切换",
+      "pass": true,
+      "detail": "{\"theme\":\"midnight\",\"bg\":\"rgb(13, 21, 36)\"}"
+    },
+    {
       "name": "20 个人空账本有行情空态",
       "pass": true,
       "detail": "—"
@@ -58,6 +88,16 @@
       "detail": ""
     },
     {
+      "name": "待确认：抽屉拒绝未来日期并保持 pending",
+      "pass": true,
+      "detail": "生效日期不能晚于今天；这条仍待确认。"
+    },
+    {
+      "name": "待确认：行内拒绝未来日期并保持 pending",
+      "pass": true,
+      "detail": "生效日期不能晚于今天；这条仍待确认。"
+    },
+    {
       "name": "核心流程：记录页确认后按历史日生效",
       "pass": true,
       "detail": ""
@@ -65,7 +105,12 @@
     {
       "name": "核心流程：新增目标落账",
       "pass": true,
-      "detail": "task_mwou2gzx_b"
+      "detail": "task_mwov57de_b"
+    },
+    {
+      "name": "弹窗：焦点进入、Esc 优先取消并回到触发按钮",
+      "pass": true,
+      "detail": "{\"focusInside\":true,\"escaped\":{\"open\":false,\"drawer\":true,\"focus\":\"完成目标\"}}"
     },
     {
       "name": "核心流程：完成后出现成功反馈",
@@ -114,6 +159,8 @@
     "13-goal-completed.png",
     "20-market-personal-empty.png",
     "21-records-empty.png",
-    "22-records-no-results.png"
+    "22-records-no-results.png",
+    "theme-light.png",
+    "theme-midnight.png"
   ]
 }

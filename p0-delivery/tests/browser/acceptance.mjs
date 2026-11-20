@@ -274,12 +274,14 @@ async function page0Shift(n) {
   await page.click("#view-personal"); await page.waitForTimeout(400);
   const q0 = await quote(page);
   check("G 历史pending加入后指数仍1000", Math.abs(q0 - 1000) < 0.05, q0);
+  await page.click("#entry"); await page.waitForTimeout(250);
   await page.click(".msg-card .card-btn.primary"); await page.waitForTimeout(600);
   const q1 = await quote(page);
   check("G 确认后按7天前重算(≈1005.97)", Math.abs(q1 - 1005.97) < 0.05, q1);
   await context.close();
   ({ context, page } = await newPage(browser, { seed: JSON.stringify(seedBase) }));
   await page.click("#view-personal"); await page.waitForTimeout(400);
+  await page.click("#entry"); await page.waitForTimeout(250);
   await page.click(".msg-card .card-btn.ghost"); await page.waitForTimeout(600);
   check("G 否认后指数仍1000", Math.abs((await quote(page)) - 1000) < 0.05, await quote(page));
   check("G 控制台0报错", page._errs.length === 0 && page._net.length === 0, [...page._errs, ...page._net].join("|") || "clean");

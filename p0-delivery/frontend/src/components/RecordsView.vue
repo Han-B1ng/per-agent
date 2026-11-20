@@ -14,6 +14,7 @@ const reviewWeekStart = ref("");
 const reviewWeeks = computed(() => listReviewWeeks(result.value));
 const review = computed(() => deriveWeeklyReview(records.value, result.value, { weekStart: reviewWeekStart.value || undefined }));
 const pendingDates = reactive<Record<string, string>>({});
+const pendingErrors = reactive<Record<string, string>>({});
 const names: Record<TimelineRow["type"], string> = { behavior: "行为", emotion: "情绪", rest: "休息", completion: "目标完成" };
 const statusNames: Record<string, string> = { pending: "待确认", deleted: "已撤销" };
 const weeks = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
@@ -34,6 +35,15 @@ function weekLabel(date: string) {
 }
 function dateFor(row: TimelineRow) {
   return pendingDates[row.id] ?? row.date;
+}
+function setPendingDate(row: TimelineRow, value: string) {
+  pendingDates[row.id] = value;
+  delete pendingErrors[row.id];
+}
+function confirmInline(row: TimelineRow) {
+  const result = confirmPending(row.id, row.kind === "rest" ? "rest" : "event", dateFor(row));
+  if (!result.ok) pendingErrors[row.id] = result.message || "这条仍待确认。";
+  else delete pendingErrors[row.id];
 }
 function hasWeek(row: TimelineRow) {
   return result.value.weeks.some((week) => week.weekStart === weekStartOf(row.date));
@@ -116,9 +126,10 @@ function openRow(row: TimelineRow) {
               <small class="record-id">{{ row.id }}<template v-if="row.taskId"> · 关联 {{ row.taskId }}</template></small>
               <small v-if="row.note" class="record-note">{{ row.note }}</small>
               <div v-if="row.status === 'pending' && editable" class="pending-editor" @click.stop>
-                <input type="date" :value="dateFor(row)" aria-label="确认生效日期" @input="pendingDates[row.id] = ($event.target as HTMLInputElement).value">
-                <button class="mini-btn" type="button" @click="confirmPending(row.id, row.kind === 'rest' ? 'rest' : 'event', dateFor(row))">确认</button>
+                <input type="date" :value="dateFor(row)" aria-label="确认生效日期" @input="setPendingDate(row, ($event.target as HTMLInputElement).value)">
+                <button class="mini-btn" type="button" @click="confirmInline(row)">确认</button>
                 <button class="mini-btn danger" type="button" @click="denyPending(row.id, row.kind === 'rest' ? 'rest' : 'event')">否认</button>
+                <span v-if="pendingErrors[row.id]" class="pending-error" role="alert">{{ pendingErrors[row.id] }}</span>
               </div>
             </div>
             <div class="record-type">{{ names[row.type] }}<span v-if="statusNames[row.status]">{{ statusNames[row.status] }}</span></div>

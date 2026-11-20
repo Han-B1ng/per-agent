@@ -6,7 +6,7 @@ import CandleChart from "./CandleChart.vue";
 import MessageList from "./MessageList.vue";
 
 const ws = inject<Workspace>("workspace")!;
-const { result, view, personal, typing, hasMessages, focusMode, focusLocked, setFocus, openWeek, conversationOpen, personalEmpty, SAMPLE_META } = ws;
+const { result, view, theme, personal, typing, hasMessages, focusMode, focusLocked, setFocus, openWeek, conversationOpen, personalEmpty, SAMPLE_META } = ws;
 const stage = ref<HTMLElement | null>(null);
 const market = ref<HTMLElement | null>(null);
 const conversation = ref<HTMLElement | null>(null);
@@ -30,7 +30,7 @@ function measure() {
   marketHeight.value = market.value.offsetHeight;
   if (focusMode.value || focusLocked.value || !conversationOpen.value || !conversation.value) return;
   if (!hasMessages.value && !typing.value) return;
-  const available = stage.value.clientHeight - marketHeight.value - 12;
+  const available = stage.value.clientHeight - marketHeight.value - 118;
   if (conversation.value.scrollHeight > available + 4) setFocus(true);
 }
 function selectWeek(index: number) {
@@ -71,7 +71,7 @@ onBeforeUnmount(() => observer?.disconnect());
           <button v-if="!emptyPersonal" type="button" class="chart-detail-btn" data-testid="chart-detail" @click="openLastWeek">计算明细 <span aria-hidden="true">↗</span></button>
         </div>
         <div class="chart">
-          <CandleChart v-if="!emptyPersonal" :weeks="visibleWeeks" :label="chartLabel" :minimal="focusMode" @select="selectWeek" />
+          <CandleChart v-if="!emptyPersonal" :weeks="visibleWeeks" :label="chartLabel" :minimal="focusMode" :theme="theme" @select="selectWeek" />
           <div v-if="emptyPersonal" class="market-empty">
             <h3>还没有个人行情</h3>
             <p>在底部说一句今天发生的事，开始记录。</p>
@@ -80,7 +80,7 @@ onBeforeUnmount(() => observer?.disconnect());
         </div>
       </div>
     </section>
-    <section v-show="hasMessages || conversationOpen" class="conversation" :class="{ 'is-focus': focusMode }" ref="conversation" aria-label="对话">
+    <section class="conversation" :class="{ 'is-focus': focusMode, 'is-collapsed': !conversationOpen && !focusMode }" ref="conversation" aria-label="对话">
       <MessageList />
     </section>
   </main>

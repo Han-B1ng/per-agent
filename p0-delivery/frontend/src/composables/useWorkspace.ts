@@ -6,7 +6,7 @@ import {
 } from "../core";
 import type {
   AgentReceipt, ChatMessage, Clarification, ComputeResult, DataView, DrawerState, ExtractContext, ExtractItem, GoalView,
-  LedgerRecords, ModelState, Page, PersonalLedger, RecordFilters, TimelineRow,
+  LedgerRecords, ModelState, Page, PersonalLedger, RecordFilters, Theme, TimelineRow,
 } from "../types";
 
 function localToday(): string {
@@ -14,8 +14,19 @@ function localToday(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+function storedTheme(): Theme {
+  try {
+    const value = localStorage.getItem("pe.theme.v1");
+    return value === "light" || value === "midnight" ? value : "dark";
+  } catch {
+    return "dark";
+  }
+}
+
 export function useWorkspace() {
   const today = ref(localToday());
+  const theme = ref<Theme>(storedTheme());
+  document.documentElement.dataset.peTheme = theme.value;
   const personal = ref<PersonalLedger>(loadPersonal());
   const sample = ref(buildSampleRecords(today.value));
   const view = ref<DataView>("sample");
@@ -60,6 +71,11 @@ export function useWorkspace() {
   const linkedTaskTitle = computed(() => records.value.tasks.find((t) => t.id === recordTaskId.value)?.title ?? recordTaskId.value);
   const personalEmpty = computed(() => personal.value.events.length === 0 && personal.value.rests.length === 0 && personal.value.tasks.length === 0);
 
+  function setTheme(next: Theme) {
+    theme.value = next;
+    document.documentElement.dataset.peTheme = next;
+    try { localStorage.setItem("pe.theme.v1", next); } catch {}
+  }
   function refreshToday(): boolean {
     const next = localToday();
     if (next === today.value) return false;
@@ -434,8 +450,22 @@ export function useWorkspace() {
     persist();
     void sendText(message.failed.text, { skipUser: true, useMock });
   }
-  function confirmPending(id: string, kind: "event" | "rest", date?: string) {
-    commit([{ op: kind === "rest" ? "confirm_rest" : "confirm_event", id, ...(date ? (kind === "rest" ? { date } : { occurredAt: date }) : {}) } as ExtractItem]);
+  function realDate(value: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || "")) return false;
+    const [y, m, d] = value.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d)).toISOString().slice(0, 10) === value;
+  }
+  function confirmPending(id: string, kind: "event" | "rest", date?: string): { ok: boolean; message?: string } {
+    const rest = kind === "rest" ? personal.value.rests.find((entry) => entry.id === id && entry.status === "pending" && entry.deletedAt == null) : null;
+    const event = kind === "event" ? personal.value.events.find((entry) => entry.id === id && entry.status === "pending" && entry.deletedAt == null) : null;
+    if (!rest && !event) return { ok: false, message: "这条记录已处理或不存在；账本没有变化。" };
+    const effectiveDate = date || (rest ? rest.date : event!.occurredAt);
+    if (!realDate(effectiveDate) || effectiveDate > today.value) {
+      return { ok: false, message: "生效日期不能晚于今天；这条仍待确认。" };
+    }
+    const write = commit([{ op: kind === "rest" ? "confirm_rest" : "confirm_event", id, ...(kind === "rest" ? { date: effectiveDate } : { occurredAt: effectiveDate }) } as ExtractItem]);
+    if (!write.applied) return { ok: false, message: write.errors[0] || "写入失败，这条仍待确认。" };
+    return { ok: true };
   }
   function denyPending(id: string, kind: "event" | "rest") {
     commit([{ op: kind === "rest" ? "deny_rest" : "deny_event", id } as ExtractItem]);
@@ -491,11 +521,11 @@ export function useWorkspace() {
   }
 
   return {
-    today, personal, sample, view, page, focusMode, focusLocked, conversationOpen, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
+    today, personal, sample, view, page, theme, focusMode, focusLocked, conversationOpen, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
     clearArmed, goalFormOpen, recordTaskId, composerFocusSignal, lastExtract, lastFailed, drawer, filters,
     records, editable, result, goals, timeline, hasMessages, currentWeek, selectedGoal, selectedRecord,
     selectedTimelineRow, auditHistory, linkedTaskTitle, SAMPLE_META,
-    refreshToday, persist, commit, setFocus, openConversation, closeConversation, focusComposer,
+    refreshToday, persist, commit, setTheme, setFocus, openConversation, closeConversation, focusComposer,
     openGoalForm, openFirstActiveGoal, requestCompleteTask, cancelCompletion, confirmCompletion,
     clearCompletedNotice, setView, setPage, openWeek, openEntity, closeDrawer,
     openWeekForDate, clearPersonalData, resetChat, sendText, retryFailed, confirmPending, denyPending,
