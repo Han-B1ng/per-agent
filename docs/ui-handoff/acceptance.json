@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T10:13:48.467Z",
+  "generatedAt": "2026-11-20T10:19:08.115Z",
   "today": "2026-11-20",
   "results": [
     {
@@ -65,7 +65,7 @@
     {
       "name": "核心流程：新增目标落账",
       "pass": true,
-      "detail": "task_mwotn5pn_b"
+      "detail": "task_mwotu0cu_b"
     },
     {
       "name": "核心流程：完成后出现成功反馈",
