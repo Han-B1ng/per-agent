@@ -8,6 +8,7 @@ import GoalsView from "./components/GoalsView.vue";
 import RecordsView from "./components/RecordsView.vue";
 import Composer from "./components/Composer.vue";
 import DetailDrawer from "./components/DetailDrawer.vue";
+import CompletionConfirm from "./components/CompletionConfirm.vue";
 
 const ws = useWorkspace();
 provide("workspace", ws);
@@ -45,8 +46,9 @@ onBeforeUnmount(() => {
       <MarketView v-if="page === 'market'" />
       <GoalsView v-else-if="page === 'goals'" />
       <RecordsView v-else />
-      <Composer />
+      <Composer v-if="page === 'market'" />
     </div>
     <DetailDrawer />
+    <CompletionConfirm />
   </div>
 </template>

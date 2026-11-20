@@ -76,7 +76,8 @@ async function observe(browser, width, height) {
 
   await send("今天跑了五公里。");
   const s2 = await marketState();
-  check(`[${tag}] 第一条消息后仍在 market（未溢出）`, s2.mode === "market", JSON.stringify(s2));
+  const shortFit = await page.evaluate(() => ({ content: document.querySelector(".conversation")?.scrollHeight ?? 0, available: document.querySelector(".stage").clientHeight - document.querySelector(".market").offsetHeight - 12 }));
+  check(`[${tag}] 第一条消息后按实际空间决定状态`, s2.mode === (shortFit.content > shortFit.available + 4 ? "focus" : "market"), JSON.stringify({ s2, shortFit }));
   await page.screenshot({ path: path.join(ROOT, `assets/screenshots/sample-${tag}-3-one-message.png`) });
 
   await send("今天完成了数据库课设。");
