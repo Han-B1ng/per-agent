@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { computed, inject, ref, watch } from "vue";
 import type { Workspace } from "../composables/useWorkspace";
-import type { EngineLine } from "../types";
+import type { EngineLine, GoalView } from "../types";
 
 const ws = inject<Workspace>("workspace")!;
 const {
   drawer, currentWeek, selectedGoal, selectedRecord, selectedTimelineRow, auditHistory, editable,
-  records, result, personal, clearArmed, view, today, closeDrawer, openEntity, openWeekForDate,
-  setPage, completeTask, deleteTask, deleteRecord, confirmPending, denyPending, correctRecord,
-  clearPersonalData, exportCurrent,
+  records, result, personal, clearArmed, view, today, modelState, closeDrawer, openEntity, openWeekForDate,
+  setPage, deleteTask, deleteRecord, confirmPending, denyPending, correctRecord,
+  clearPersonalData, exportCurrent, requestCompleteTask, completionRequest, completeTask,
 } = ws;
 const editDate = ref("");
 const editQuote = ref("");
@@ -16,15 +16,22 @@ const fmtIndex = (n: number) => n.toLocaleString("en-US", { minimumFractionDigit
 const fmtPct = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(2)}%`;
 const fmtContrib = (c: number) => `${c > 0 ? "+" : ""}${(c * 100).toFixed(2)}%`;
 const contribClass = (c: number) => (c > 0 ? "pos" : c < 0 ? "neg" : "zero");
+const statusNames: Record<GoalView["displayStatus"], string> = { open: "进行中", overdue: "已逾期", paused: "已暂停", done: "已完成" };
+const modelNames = { model: "模型在线", mock: "本地 Mock", degraded: "模型降级", offline: "离线" } as const;
 const title = computed(() => {
-  if (drawer.mode === "goal") return "目标详情";
-  if (drawer.mode === "record") return selectedRecord.value?.kind === "task" ? "任务完成事实" : "成长记录详情";
-  if (drawer.mode === "settings") return "设置与数据";
-  return drawer.tab === "detail" ? "计算明细" : "持仓任务";
+  if (drawer.mode === "goal") return selectedGoal.value?.title ?? "目标详情";
+  if (drawer.mode === "record") return selectedRecord.value?.kind === "task" ? selectedRecord.value.title : selectedRecord.value?.quote ?? "成长记录详情";
+  if (drawer.mode === "settings") return "设置";
+  return drawer.tab === "detail" ? "周 K 计算明细" : "持仓任务";
 });
 const sub = computed(() => {
   if (drawer.mode === "week") return currentWeek.value ? `${currentWeek.value.weekStart} ~ ${currentWeek.value.weekEnd} · 周 K` : "—";
-  if (drawer.mode === "settings") return view.value === "sample" ? "样例只读" : "个人账本 · localStorage v2";
+  if (drawer.mode === "settings") return "数据与模型";
+  if (drawer.mode === "goal" && selectedGoal.value) return `${statusNames[selectedGoal.value.displayStatus]} · ${selectedGoal.value.dueAt} 到期`;
+  if (drawer.mode === "record" && selectedTimelineRow.value) {
+    const type = selectedTimelineRow.value.type === "completion" ? "目标完成" : selectedTimelineRow.value.type === "emotion" ? "情绪" : selectedTimelineRow.value.type === "rest" ? "休息" : "行为";
+    return `${selectedTimelineRow.value.date} · ${type}${selectedTimelineRow.value.status === "pending" ? " · 待确认" : ""}`;
+  }
   return drawer.id ?? "—";
 });
 const taskList = computed(() => records.value.tasks.filter((t) => t.deletedAt == null));
@@ -53,6 +60,13 @@ function removeSelected() {
   if (record.status === "pending") denyPending(record.id, record.kind);
   else deleteRecord(record.id, record.kind);
 }
+function completeSelected() {
+  if (selectedGoal.value) requestCompleteTask(selectedGoal.value.id);
+}
+function openGoalWeek() {
+  if (!selectedGoal.value) return;
+  openWeekForDate(selectedGoal.value.doneAt ? String(selectedGoal.value.doneAt).slice(0, 10) : today.value);
+}
 </script>
 
 <template>
@@ -70,10 +84,10 @@ function removeSelected() {
       <div class="drawer-body" id="drawer-body" tabindex="0">
         <template v-if="drawer.mode === 'week' && currentWeek && drawer.tab === 'detail'">
           <dl class="week-ohlc">
-            <div><dt>开</dt><dd>{{ fmtIndex(currentWeek.open) }}</dd></div>
-            <div><dt>高</dt><dd>{{ fmtIndex(currentWeek.high) }}</dd></div>
-            <div><dt>低</dt><dd>{{ fmtIndex(currentWeek.low) }}</dd></div>
-            <div><dt>收</dt><dd>{{ fmtIndex(currentWeek.close) }}</dd></div>
+            <div><dt>开盘</dt><dd>{{ fmtIndex(currentWeek.open) }}</dd></div>
+            <div><dt>最高</dt><dd>{{ fmtIndex(currentWeek.high) }}</dd></div>
+            <div><dt>最低</dt><dd>{{ fmtIndex(currentWeek.low) }}</dd></div>
+            <div><dt>收盘</dt><dd>{{ fmtIndex(currentWeek.close) }}</dd></div>
           </dl>
           <p class="week-vol">当周事件 {{ currentWeek.volume }} 条 · 收盘 {{ fmtIndex(currentWeek.close) }}（{{ fmtPct((currentWeek.close - currentWeek.open) / currentWeek.open) }}）</p>
           <div v-for="day in currentWeek.days" :key="day.date" class="day-block">
@@ -96,6 +110,7 @@ function removeSelected() {
             </div>
           </div>
         </template>
+
         <template v-else-if="drawer.mode === 'week' && drawer.tab === 'tasks'">
           <div v-if="!taskList.length" class="drawer-empty">还没有持仓任务。可在目标中心新增，或说一句「要在…前完成」。</div>
           <div v-for="task in taskList" :key="task.id" class="task-row">
@@ -108,42 +123,52 @@ function removeSelected() {
             </div>
           </div>
         </template>
+
         <template v-else-if="drawer.mode === 'goal' && selectedGoal">
-          <div class="detail-stack">
-            <section class="detail-card">
-              <h3>{{ selectedGoal.title }}</h3>
-              <p>状态：{{ selectedGoal.displayStatus === "done" ? "已完成" : selectedGoal.displayStatus === "paused" ? "暂停" : selectedGoal.displayStatus === "overdue" ? "逾期" : "进行中" }}</p>
-              <p>到期日：{{ selectedGoal.dueAt }} · 仓位：{{ selectedGoal.position }}/5</p>
-              <p v-if="selectedGoal.doneAt">完成日期：{{ String(selectedGoal.doneAt).slice(0, 10) }}</p>
+          <div class="drawer-goal">
+            <div class="drawer-goal-meta">
+              <span class="badge" :class="selectedGoal.displayStatus">{{ statusNames[selectedGoal.displayStatus] }}</span>
+              <span>到期 {{ selectedGoal.dueAt }}</span>
+              <span>投入 {{ selectedGoal.position }} / 5</span>
+            </div>
+            <div class="goal-meter large">
+              <div class="goal-meter-label"><span>投入程度</span><span>{{ selectedGoal.position }} / 5</span></div>
+              <div class="goal-meter-track"><i :style="{ width: `${selectedGoal.position * 20}%` }"></i></div>
+            </div>
+            <section class="drawer-section">
+              <h3>关联记录</h3>
+              <p class="drawer-note">{{ selectedGoal.doneAt ? `完成于 ${String(selectedGoal.doneAt).slice(0, 10)}` : "完成后会自动写入成长记录。" }}</p>
               <div class="detail-actions">
                 <button class="action-btn" type="button" @click="setPage('records', { taskId: selectedGoal.id })">关联成长记录</button>
-                <button class="action-btn" type="button" @click="openWeekForDate(selectedGoal.doneAt ? String(selectedGoal.doneAt).slice(0, 10) : today)">计分明细</button>
+                <button class="action-btn" type="button" @click="openGoalWeek">计分明细</button>
               </div>
             </section>
-            <section v-if="editable && selectedGoal.deletedAt == null" class="detail-card">
+            <section v-if="editable && selectedGoal.deletedAt == null" class="drawer-section">
               <h3>目标操作</h3>
               <div class="detail-actions">
-                <button v-if="selectedGoal.status === 'open'" class="action-btn primary" type="button" @click="completeTask(selectedGoal.id)">标记完成</button>
                 <button class="action-btn danger" type="button" @click="deleteTask(selectedGoal.id)">删除目标</button>
               </div>
             </section>
           </div>
         </template>
+
         <template v-else-if="drawer.mode === 'record' && selectedRecord">
-          <div class="detail-stack">
-            <section class="detail-card">
-              <h3>原文</h3>
-              <p>{{ selectedRecord.kind === "task" ? selectedRecord.title : selectedRecord.quote }}</p>
-              <p>生效日期：{{ recordDate }}</p>
-              <p>生效值：{{ fmtContrib(selectedTimelineRow?.contribution ?? 0) }} · 状态：{{ selectedTimelineRow?.status ?? (selectedRecord.kind === "task" ? selectedRecord.status : selectedRecord.status) }}</p>
-              <p>关联 ID：{{ selectedRecord.id }}</p>
-              <div class="detail-actions">
-                <button v-if="selectedRecord.kind === 'task'" class="action-btn" type="button" @click="openEntity('goal', selectedRecord.id)">返回目标</button>
-                <button class="action-btn" type="button" @click="openWeekForDate(recordDate === '—' ? today : recordDate)">打开计分明细</button>
-              </div>
+          <div class="record-detail">
+            <section class="drawer-section source-quote">
+              <h3>原始对话</h3>
+              <blockquote>「{{ selectedRecord.kind === "task" ? selectedRecord.title : selectedRecord.quote }}」</blockquote>
             </section>
-            <section v-if="editable && selectedRecord.deletedAt == null && selectedRecord.kind !== 'task'" class="detail-card">
-              <h3>{{ selectedRecord.status === "pending" ? "补充与确认" : "修正" }}</h3>
+            <section class="record-facts">
+              <div><span>生效日期</span><strong>{{ recordDate }}</strong></div>
+              <div><span>状态</span><strong>{{ selectedTimelineRow?.status === "pending" ? "待确认" : selectedTimelineRow?.status === "deleted" ? "已撤销" : "已生效" }}</strong></div>
+              <div class="record-fact-pct"><span>计分贡献</span><strong :class="contribClass(selectedTimelineRow?.contribution ?? 0)">{{ fmtContrib(selectedTimelineRow?.contribution ?? 0) }}</strong></div>
+            </section>
+            <div class="detail-actions">
+              <button v-if="selectedRecord.kind === 'task'" class="action-btn" type="button" @click="openEntity('goal', selectedRecord.id)">返回目标</button>
+              <button class="action-btn" type="button" @click="openWeekForDate(recordDate === '—' ? today : recordDate)">查看周 K</button>
+            </div>
+            <section v-if="editable && selectedRecord.deletedAt == null && selectedRecord.kind !== 'task'" class="drawer-section">
+              <h3>{{ selectedRecord.status === "pending" ? "补充与确认" : "修正记录" }}</h3>
               <form class="edit-form" @submit.prevent="saveCorrection">
                 <label>生效日期<input v-model="editDate" type="date" required></label>
                 <label>原文<textarea v-model="editQuote" rows="3" maxlength="200"></textarea></label>
@@ -154,31 +179,43 @@ function removeSelected() {
                 </div>
               </form>
             </section>
-            <section v-if="editable && auditHistory.length" class="detail-card">
+            <section v-if="editable && auditHistory.length" class="drawer-section">
               <h3>变更轨迹</h3>
               <ul class="audit-list"><li v-for="entry in auditHistory.slice(0, 12)" :key="entry.id">{{ entry.at }} · {{ entry.action }}</li></ul>
             </section>
           </div>
         </template>
+
         <template v-else-if="drawer.mode === 'settings'">
-          <div class="detail-stack">
-            <section class="detail-card">
-              <h3>数据范围</h3>
-              <p class="export-note">{{ view === "sample" ? "当前导出只包含虚构样例，不会触碰个人账本。样例不可清空或修改。" : "当前导出只包含个人账本。清空会同时移除 v1/v2 个人数据，不影响样例。" }}</p>
-              <div class="detail-actions">
-                <button class="action-btn" type="button" @click="exportCurrent">{{ view === "sample" ? "导出样例 JSON" : "导出我的 JSON" }}</button>
-                <template v-if="editable">
-                  <button v-if="!clearArmed" class="action-btn danger" type="button" @click="clearArmed = true">清空我的记录</button>
-                  <template v-else>
-                    <button class="action-btn danger" type="button" @click="clearPersonalData">确定清空</button>
-                    <button class="action-btn" type="button" @click="clearArmed = false">取消</button>
-                  </template>
-                </template>
-              </div>
+          <div class="settings-panel">
+            <section class="settings-block">
+              <h3>本机数据</h3>
+              <p>个人记录保存在当前浏览器。</p>
+              <button class="action-btn" type="button" @click="exportCurrent">{{ view === "sample" ? "导出样例 JSON" : "导出我的 JSON" }}</button>
+            </section>
+            <section class="settings-block">
+              <h3>模型连接</h3>
+              <p class="model-line" :data-state="modelState"><i></i>{{ modelNames[modelState] }}</p>
+              <p>发送消息时会抽取所需内容发给模型。</p>
+            </section>
+            <section v-if="editable" class="settings-block">
+              <template v-if="!clearArmed">
+                <button class="action-btn danger" type="button" @click="clearArmed = true">清空我的记录</button>
+              </template>
+              <template v-else>
+                <p>清空会移除个人账本与对话，样例不受影响。</p>
+                <div class="detail-actions">
+                  <button class="action-btn danger" type="button" @click="clearPersonalData">确定清空</button>
+                  <button class="action-btn" type="button" @click="clearArmed = false">取消</button>
+                </div>
+              </template>
             </section>
           </div>
         </template>
       </div>
+      <footer v-if="drawer.mode === 'goal' && selectedGoal && editable && selectedGoal.status === 'open'" class="drawer-footer">
+        <button class="action-btn primary wide" type="button" :disabled="Boolean(completionRequest)" @click="completeSelected">完成目标</button>
+      </footer>
     </aside>
   </Transition>
 </template>

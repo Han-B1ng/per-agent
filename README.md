@@ -79,6 +79,7 @@ npm run test:install
 | `npm run test:browser` | 核心流程、待确认、持久化和模型降级 |
 | `npm run test:v02` | 三个页面之间的账本联动 |
 | `npm run test:agent` | 三意图、澄清候选、逐项日期、回执与 Sites 复用协议 |
+| `npm run test:ui` | 行情三态、目标/记录/设置画板与核心流程；输出 `docs/ui-handoff/` 证据 |
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |
 | `npm run test:sample` | 与现有桌面交互样板的对照 |
 
@@ -90,4 +91,5 @@ npm run test:install
 - [事件、目标与指数算法](docs/design/agent-engine-spec-v0.1.md)
 - [产品与算法决策记录](docs/decisions/decision-log.md)
 - [Agent 交流协议与示例](docs/design/agent-communication-protocol-v0.1.md)
+- [桌面 UI 实现与验收证据](docs/ui-handoff/README.md)
 - [贡献与协作约定](AGENTS.md)

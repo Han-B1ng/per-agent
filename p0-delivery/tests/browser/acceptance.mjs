@@ -74,7 +74,8 @@ for (const [w, h] of [[1440, 900], [1440, 720]]) {
   const s1 = await marketState(page);
   check(`A[${tag}] 首次点输入框K线不动`, s1.transform === s0.transform && s1.w === s0.w && s1.h === s0.h && s1.x === s0.x && s1.y === s0.y, JSON.stringify(s1));
   await send(page, "今天跑了五公里。");
-  check(`A[${tag}] 单条消息未溢出仍market`, (await marketState(page)).mode === "market", "");
+  const shortState = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, content: document.querySelector(".conversation")?.scrollHeight ?? 0, available: document.querySelector(".stage").clientHeight - document.querySelector(".market").offsetHeight - 12 }));
+  check(`A[${tag}] 单条消息按实际空间决定是否专注`, shortState.mode === (shortState.content > shortState.available + 4 ? "focus" : "market"), JSON.stringify(shortState));
   for (const t of ["今天完成了数据库课设。", "今天有点累，想休息一天。", "晚上和室友吃了火锅。", "回宿舍收尾了作业。", "睡前看了半小时书。", "早上小跑到教室。", "课间问懂了上次的问题。", "下午又跑了三公里。"]) await send(page, t);
   const s2 = await marketState(page);
   check(`A[${tag}] 溢出后focus放大渐隐`, s2.mode === "focus" && s2.transform.includes("1.24") && parseFloat(s2.opacity) < 0.2 && s2.filter.includes("blur"), `${s2.transform} ${s2.opacity} ${s2.filter}`);
