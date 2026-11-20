@@ -75,6 +75,7 @@ export interface Clarification {
   intent: ClarificationIntent;
   question: string;
   sourceText: string;
+  answerDate?: string;
   candidates: ClarificationCandidate[];
   status: "pending" | "resolved" | "cancelled";
   createdAt: string;

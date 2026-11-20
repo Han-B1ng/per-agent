@@ -16,7 +16,8 @@ type ClarificationInput = Omit<Clarification, "id" | "status" | "createdAt" | "r
 type ProtocolModule = {
   planAgentItems(items: ExtractItem[], text: string, options: { today: string; openTasks: Array<{ id: string; title: string; dueAt?: string }> }): PlanResult;
   resolveClarificationReply(clarification: Clarification, text: string, today: string): Resolution;
-  normalizeClarification(clarification: ClarificationInput, options: { now?: string; createId: (prefix: string) => string }): Clarification | null;
+  normalizeClarification(clarification: ClarificationInput, options: { now?: string; today?: string; text?: string; createId: (prefix: string) => string }): Clarification | null;
+  clarificationItem(clarification: Clarification, candidateId: string, today: string): ExtractItem;
   validateClarificationAgainstLedger(clarification: ClarificationInput, context: { openTasks: Array<{ id: string }>; pendingEvents: Array<{ id: string }>; pendingRests: Array<{ id: string }> }): string[];
   buildReceipt(input: { writes: ExtractItem[]; result: WriteResult; clarifications: number }): AgentReceipt;
   noOpReply(receipt: AgentReceipt): string;
@@ -87,8 +88,11 @@ export function planAgentItems(items: ExtractItem[], text: string, options: { to
 export function resolveClarificationReply(clarification: Clarification, text: string, today: string): Resolution {
   return protocolApi.resolveClarificationReply(clarification, text, today);
 }
-export function normalizeClarification(clarification: ClarificationInput, options: { now?: string; createId: (prefix: string) => string }): Clarification | null {
+export function normalizeClarification(clarification: ClarificationInput, options: { now?: string; today?: string; text?: string; createId: (prefix: string) => string }): Clarification | null {
   return protocolApi.normalizeClarification(clarification, options);
+}
+export function clarificationItem(clarification: Clarification, candidateId: string, today: string): ExtractItem {
+  return protocolApi.clarificationItem(clarification, candidateId, today);
 }
 export function validateClarificationAgainstLedger(clarification: ClarificationInput, context: { openTasks: Array<{ id: string }>; pendingEvents: Array<{ id: string }>; pendingRests: Array<{ id: string }> }): string[] {
   return protocolApi.validateClarificationAgainstLedger(clarification, context);

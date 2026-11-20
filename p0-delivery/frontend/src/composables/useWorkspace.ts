@@ -1,6 +1,6 @@
 import { computed, reactive, ref } from "vue";
 import {
-  applyItems, buildReceipt, buildSampleRecords, clearPersonal, computeAll, findRecord, genId, getClientId,
+  applyItems, buildReceipt, buildSampleRecords, clarificationItem, clearPersonal, computeAll, findRecord, genId, getClientId,
   getGoals, getTimeline, hasAdditionalIntent, health, isQuestionOnlyText, loadPersonal, noOpReply, normalizeClarification, planAgentItems, resolveClarificationReply,
   sanitizeAgentReply, savePersonal, send, shiftDate, validateAgentWrites, validateClarificationAgainstLedger, weekStartOf, SAMPLE_META,
 } from "../core";
@@ -190,16 +190,6 @@ export function useWorkspace() {
     if (resolution) current.resolution = resolution;
     persist();
   }
-  function clarificationItem(clarification: Clarification, candidateId: string): ExtractItem {
-    if (clarification.intent === "complete_task") return { op: "complete_task", id: candidateId, doneAt: today.value };
-    if (clarification.intent === "delete_task") return { op: "delete_task", id: candidateId };
-    if (clarification.intent === "confirm_event") return { op: "confirm_event", id: candidateId };
-    if (clarification.intent === "confirm_rest") return { op: "confirm_rest", id: candidateId };
-    if (clarification.intent === "deny_event") return { op: "deny_event", id: candidateId };
-    if (clarification.intent === "deny_rest") return { op: "deny_rest", id: candidateId };
-    if (clarification.intent === "delete_event") return { op: "delete_event", id: candidateId };
-    return { op: "delete_rest", id: candidateId };
-  }
   function targetLabel(item: ExtractItem): string {
     if (!("id" in item)) return "";
     return personal.value.tasks.find((task) => task.id === item.id)?.title
@@ -208,6 +198,13 @@ export function useWorkspace() {
       || "";
   }
   function finishClarification(message: ChatMessage, clarification: Clarification, item: ExtractItem, label = "") {
+    refreshToday();
+    const errors = validateAgentWrites([item], { today: today.value });
+    if (errors.length) {
+      recordFailure(clarification.sourceText || label, { code: "bad_output", message: errors[0] });
+      persist();
+      return;
+    }
     const write = commit([item]);
     const receipt = buildReceipt({ writes: [item], result: write, clarifications: 0 });
     if (!write.applied) {
@@ -243,6 +240,11 @@ export function useWorkspace() {
     if (resolved.length === 1) {
       const { message, clarification, result } = resolved[0];
       if (result.status === "negative") {
+        if (result.reason === "not_target") {
+          personal.value.chat.push({ id: genId("msg"), role: "assistant", text: "好，不处理这个候选，也不会自动选择另一个。请明确选择要处理的目标。", mode: "local" });
+          persist();
+          return "ambiguous";
+        }
         const reply = result.reason === "not_done"
           ? "这个目标还没完成，我先不标记。"
           : result.reason === "not_deleted"
@@ -279,7 +281,8 @@ export function useWorkspace() {
     const clarification = message?.clarifications?.find((entry) => entry.id === clarificationId && entry.status === "pending");
     const candidate = clarification?.candidates.find((entry) => entry.id === candidateId);
     if (!message || !clarification || !candidate) return;
-    finishClarification(message, clarification, clarificationItem(clarification, candidateId), candidate.title || candidate.quote || candidate.label);
+    refreshToday();
+    finishClarification(message, clarification, clarificationItem(clarification, candidateId, today.value), candidate.title || candidate.quote || candidate.label);
   }
   function cancelClarification(messageId: string, clarificationId: string) {
     const message = personal.value.chat.find((entry) => entry.id === messageId);
@@ -309,7 +312,7 @@ export function useWorkspace() {
     }
     const now = new Date().toISOString();
     const clarifications = plan.clarifications
-      .map((clarification) => normalizeClarification(clarification, { now, createId: genId }))
+      .map((clarification) => normalizeClarification(clarification, { now, today: today.value, text, createId: genId }))
       .filter((clarification): clarification is Clarification => Boolean(clarification));
     for (const item of plan.writes) {
       if (!("id" in item)) continue;

@@ -12,18 +12,16 @@ const check = (name, pass, detail = "") => {
   console.log(`${pass ? "PASS" : "FAIL"} ${name} :: ${detail}`);
 };
 const listen = (server) => new Promise((resolve) => server.listen(0, "127.0.0.1", () => resolve(server)));
-const localToday = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
+const today = "2026-11-20";
 const app = await listen(createApp({ env: {} }));
 const B = `http://127.0.0.1:${app.address().port}`;
 const browser = await chromium.launch({ headless: true, ...(process.env.PE_CHANNEL ? { channel: process.env.PE_CHANNEL } : {}) });
 
-async function newPage({ width = 1440, height = 900, seed = null } = {}) {
-  const context = await browser.newContext({ viewport: { width, height } });
+async function newPage({ width = 1440, height = 900, seed = null, recordVideo = false } = {}) {
+  const context = await browser.newContext({ timezoneId: "Asia/Shanghai", viewport: { width, height }, ...(recordVideo ? { recordVideo: { dir: path.join(ROOT, "assets/videos"), size: { width, height } } } : {}) });
   if (seed) await context.addInitScript((value) => localStorage.setItem("pe.personal.v1", JSON.stringify(value)), seed);
   const page = await context.newPage();
+  await page.clock.setFixedTime(new Date(`${today}T12:00:00+08:00`));
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error" && !/Failed to load resource/.test(message.text())) errors.push(message.text()); });
@@ -47,8 +45,6 @@ const send = async (page, text, wait = 900) => {
 };
 const lastAssistant = (page) => page.locator('.message[data-author="assistant"]').last();
 const receipt = (page) => page.locator('[data-testid="agent-receipt"]').last();
-
-const today = localToday();
 
 /* A. 新增目标 → 唯一完成 → 重复完成不重复增益 */
 {
@@ -353,6 +349,111 @@ const today = localToday();
   check("J 旧 pending 不被吞掉", data.events.filter((event) => event.status === "pending").length === 2 && (await page.locator(".msg-card .card-btn.primary").count()) === 2, await page.locator(".msg-card .card-btn.primary").count());
   check("J 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
   await context.close();
+}
+
+{
+  const seed = {
+    events: [], rests: [], chat: [],
+    tasks: [
+      { id: "task_db", kind: "task", title: "数据库课设", dueAt: "2026-11-21", position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+      { id: "task_algo", kind: "task", title: "算法课设", dueAt: "2026-11-24", position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+    ],
+  };
+  const { context, page } = await newPage({ seed, recordVideo: true });
+  await ensurePersonal(page);
+  const before = await quote(page);
+  await send(page, "课设交了");
+  const beforeDenial = await state(page);
+  await send(page, "不是数据库那个");
+  let data = await state(page);
+  check("K 否认候选不改账本、不写完成日期", JSON.stringify(data.tasks) === JSON.stringify(beforeDenial.tasks) && data.audit.length === beforeDenial.audit.length && data.events.length === 0, JSON.stringify(data.tasks));
+  check("K 否认候选不改变指数", (await quote(page)) === before, `${before} → ${await quote(page)}`);
+  check("K 否认候选不宣称已完成且继续澄清", !(await lastAssistant(page).innerText()).includes("已完成") && (await page.locator('[data-testid="clarification-card"]').count()) === 1, await lastAssistant(page).innerText());
+  await page.reload({ waitUntil: "networkidle" });
+  await ensurePersonal(page);
+  check("K 刷新后否认仍未入账", (await state(page)).tasks.every((task) => task.status === "open" && task.doneAt === null) && (await quote(page)) === before, await quote(page));
+  await send(page, "算法那个");
+  data = await state(page);
+  const completed = data.tasks.find((task) => task.id === "task_algo");
+  check("K 明确肯定后只完成算法目标且日期正确", completed.status === "done" && completed.doneAt.slice(0, 10) === today && data.tasks.find((task) => task.id === "task_db").status === "open" && data.audit.filter((entry) => entry.action === "complete_task").length === 1, JSON.stringify(data.tasks));
+  check("K 仅肯定完成后计一次增益", (await quote(page)) > before && Math.abs((await quote(page)) - computeAll(data, { today }).latest) < 0.05, `${before} → ${await quote(page)}`);
+  check("K 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+  await page.video().saveAs(path.join(ROOT, "assets/videos/pr10-p1-negation.webm"));
+}
+
+{
+  const { context, page } = await newPage({ recordVideo: true });
+  await ensurePersonal(page);
+  const before = await quote(page);
+  await page.route("**/api/extract", (route) => route.fulfill({
+    status: 200, contentType: "application/json",
+    body: JSON.stringify({ ok: true, mode: "model", reply: "跑步已计入指数。", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-19", quote: "跑过五公里", tags: [], confidence: 0.9 } }] }),
+  }));
+  await send(page, "前阵子跑过五公里");
+  let data = await state(page);
+  check("L 缩短引文仍待确认且没有确认审计", data.events.length === 1 && data.events[0].status === "pending" && data.audit.every((entry) => entry.action !== "confirm_event"), JSON.stringify(data.events));
+  check("L 模型猜昨天不产生当天或历史贡献", (await quote(page)) === before && computeAll(data, { today }).days.every((day) => day.lines.every((line) => line.id !== data.events[0].id)), `${before} → ${await quote(page)}`);
+  check("L 待确认回执不宣称计分", !(await lastAssistant(page).innerText()).includes("已计入") && (await receipt(page).innerText()).includes("待确认"), await lastAssistant(page).innerText());
+  await page.unroute("**/api/extract");
+  await page.reload({ waitUntil: "networkidle" });
+  await ensurePersonal(page);
+  check("L 刷新后仍待确认且指数不变", (await state(page)).events[0].status === "pending" && (await quote(page)) === before, await quote(page));
+  await send(page, "上周三");
+  data = await state(page);
+  check("L 补日期后实际入账为十一月十一日", data.events.length === 1 && data.events[0].status === "confirmed" && data.events[0].occurredAt === "2026-11-11", JSON.stringify(data.events));
+  const expected = computeAll({ ...data, events: [{ ...data.events[0], status: "confirmed", occurredAt: "2026-11-11" }] }, { today });
+  check("L 补日期后指数等于历史重算值", (await quote(page)) !== before && Math.abs((await quote(page)) - expected.latest) < 0.05, `${before} → ${await quote(page)} / expected=${expected.latest}`);
+  check("L 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+  await page.video().saveAs(path.join(ROOT, "assets/videos/pr10-p1-short-quote.webm"));
+}
+
+for (const reload of [false, true]) {
+  for (const selection of ["click", "text"]) {
+    const label = `M ${reload ? "刷新后" : "直接"}${selection === "click" ? "点击" : "文字选择"}`;
+    const seed = {
+      events: [
+        { id: "evt_a", kind: "event", eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: today, quote: "前阵子跑过五公里", tags: [], confidence: 0.4, status: "pending", createdAt: `${today}T08:00:00.000Z`, deletedAt: null },
+        { id: "evt_b", kind: "event", eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: today, quote: "前阵子读过一本书", tags: [], confidence: 0.4, status: "pending", createdAt: `${today}T08:01:00.000Z`, deletedAt: null },
+      ],
+      rests: [], tasks: [], chat: [{ id: "msg_pending", role: "assistant", text: "两条记录待确认", pending: ["evt_a", "evt_b"] }],
+    };
+    const recordVideo = reload && selection === "click";
+    const { context, page } = await newPage({ seed, recordVideo });
+    await ensurePersonal(page);
+    const before = await quote(page);
+    await send(page, "上周三");
+    let data = await state(page);
+    const clarification = data.chat.flatMap((message) => message.clarifications || []).find((entry) => entry.status === "pending");
+    check(`${label} 保存补充日期但尚不入账`, clarification?.answerDate === "2026-11-11" && data.events.every((event) => event.status === "pending") && (await quote(page)) === before, JSON.stringify(clarification));
+    if (reload) {
+      await page.reload({ waitUntil: "networkidle" });
+      await ensurePersonal(page);
+    }
+    if (selection === "click") {
+      await page.locator('[data-candidate-id="evt_a"]').click();
+      await page.waitForTimeout(500);
+    } else {
+      await send(page, "第一个");
+    }
+    data = await state(page);
+    const event = data.events.find((entry) => entry.id === "evt_a");
+    const other = data.events.find((entry) => entry.id === "evt_b");
+    const audits = data.audit.filter((entry) => entry.action === "confirm_event");
+    check(`${label} 只确认所选记录且实际日期正确`, event.status === "confirmed" && event.occurredAt === "2026-11-11" && other.status === "pending" && other.occurredAt === today && audits.length === 1 && audits[0].after.occurredAt === "2026-11-11", JSON.stringify({ event, other, audits }));
+    const expected = computeAll({ ...data, events: seed.events.map((entry) => entry.id === "evt_a" ? { ...entry, status: "confirmed", occurredAt: "2026-11-11" } : entry) }, { today });
+    const actual = computeAll(data, { today });
+    check(`${label} 指数及逐日贡献按历史日期重算`, (await quote(page)) !== before && Math.abs((await quote(page)) - expected.latest) < 0.05 && JSON.stringify(actual.days) === JSON.stringify(expected.days), `${before} → ${await quote(page)} / expected=${expected.latest}`);
+    const after = await quote(page);
+    await page.reload({ waitUntil: "networkidle" });
+    await ensurePersonal(page);
+    data = await state(page);
+    check(`${label} 再刷新保持日期且不重复计分`, data.events.find((entry) => entry.id === "evt_a").occurredAt === "2026-11-11" && data.audit.filter((entry) => entry.action === "confirm_event").length === 1 && (await quote(page)) === after && (await page.locator('[data-testid="clarification-card"]').count()) === 0, `${after} → ${await quote(page)}`);
+    check(`${label} 控制台无错误`, page._errors.length === 0, page._errors.join("|") || "clean");
+    await context.close();
+    if (recordVideo) await page.video().saveAs(path.join(ROOT, "assets/videos/pr10-p1-saved-date.webm"));
+  }
 }
 
 await browser.close();

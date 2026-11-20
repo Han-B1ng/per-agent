@@ -266,6 +266,20 @@ test("Agent 协议 model stub：合法澄清透传，非法候选/未来日期�
   upInvented.close(); sInvented.close();
 });
 
+test("Agent 协议：模型缩短引文不能绕过原句的模糊日期", async () => {
+  const payload = { reply: "已计入指数", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-16", quote: "跑过五公里", tags: [], confidence: 0.9 } }] };
+  const up = await listen(okUpstream(payload));
+  const s = await listen(createApp({ env: { MODEL_API_KEY: "k", MODEL_BASE_URL: base(up) }, staticRoot: fixture() }));
+  try {
+    const response = await post(base(s), { text: "前阵子跑过五公里，今天读完一本书", context: ctx() });
+    assert.equal(response.json.ok, true);
+    assert.equal(response.json.items[0].event.quote, "跑过五公里");
+    assert.equal(response.json.items[0].event.confidence, 0.4);
+  } finally {
+    up.close(); s.close();
+  }
+});
+
 test("Agent 协议：模糊日期按 item 降置信，历史日不能绕过；多条 pending 不吞新事件", async () => {
   const vague = { reply: "记下了", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-16", quote: "前阵子跑过五公里", tags: [], confidence: 0.9 } }] };
   const up = await listen(okUpstream(vague));

@@ -7,6 +7,7 @@ import { validateExtractItems, sanitizeItems } from "../server/model.mjs";
 import { resolveDate, resolveDueDate } from "../web/date.js";
 import {
   buildReceipt,
+  clarificationItem,
   guardAmbiguousTaskWrites,
   hasAdditionalIntent,
   isQuestionOnlyText,
@@ -109,6 +110,31 @@ test("否定、疑问与新动作不会被候选标题误判为完成", () => {
   assert.equal(resolveClarificationReply(CLARIFICATION, "数据库那个", TODAY).status, "resolved");
 });
 
+test("否认候选先于标题、序数和 ID 匹配，不推断其他候选", () => {
+  for (const intent of ["complete_task", "delete_task"]) {
+    for (const text of ["不是数据库那个", "不是第一个", "不是 task_db", "不选数据库那个", "不是数据库那个，是算法那个"]) {
+      const result = resolveClarificationReply({ ...CLARIFICATION, intent }, text, TODAY);
+      assert.equal(result.status, "negative", `${intent}: ${text}`);
+      assert.equal(result.reason, "not_target");
+      assert.equal(result.item, undefined);
+    }
+  }
+});
+
+test("模型缩短引文时仍按用户对应分句判断模糊日期", () => {
+  for (const kind of ["event", "rest"]) {
+    const quote = kind === "event" ? "跑过五公里" : "休息过";
+    const record = kind === "event"
+      ? { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-18", quote, tags: [], confidence: 0.9 }
+      : { date: "2026-11-18", quote, confidence: 0.9 };
+    const item = { op: `add_${kind}`, [kind]: record };
+    for (const text of [`前阵子${quote}`, `前阵子${quote}，今天读完一本书`, `今天读完一本书；前阵子${quote}`]) {
+      assert.equal(planAgentItems([item], text, { today: TODAY }).writes[0][kind].confidence, 0.4, text);
+    }
+    assert.equal(planAgentItems([item], `上周三${quote}`, { today: TODAY }).writes[0][kind].confidence, 0.9);
+  }
+});
+
 test("删除澄清保留 delete_task，不会在选择候选后计完成增益", () => {
   const deletion = { ...CLARIFICATION, intent: "delete_task" };
   const resolved = resolveClarificationReply(deletion, "数据库那个", TODAY);
@@ -193,6 +219,31 @@ test("多条 pending 时，带日期的新事件仍入账；纯日期才追问�
   const dated = mock.extract("上周三", { today: TODAY, pendingEvents: pending });
   assert.equal(dated.items[0].op, "request_clarification");
   assert.equal(dated.items[0].clarification.kind, "record_target");
+});
+
+test("澄清保存绝对日期，文字选择跨周仍沿用且允许显式改期", () => {
+  const response = mock.extract("上周三", { today: "2026-11-20", pendingEvents: [
+    { id: "evt_a", quote: "旧事A", occurredAt: "2026-11-20" },
+    { id: "evt_b", quote: "旧事B", occurredAt: "2026-11-20" },
+  ] });
+  const clarification = normalizeClarification(response.items[0].clarification, { today: "2026-11-20", text: "上周三", createId: () => "clr_date" });
+  assert.equal(clarification.answerDate, "2026-11-11");
+  const restored = JSON.parse(JSON.stringify(clarification));
+  assert.deepEqual(resolveClarificationReply(restored, "第一个", "2026-11-27").item, { op: "confirm_event", id: "evt_a", occurredAt: "2026-11-11" });
+  assert.deepEqual(resolveClarificationReply(restored, "第一个，是昨天", "2026-11-27").item, { op: "confirm_event", id: "evt_a", occurredAt: "2026-11-26" });
+});
+
+test("点击与文字选择共用日期构造，支持事件、休息和目标", () => {
+  for (const [intent, field] of [["confirm_event", "occurredAt"], ["confirm_rest", "date"], ["complete_task", "doneAt"]]) {
+    const clarification = { ...CLARIFICATION, intent, answerDate: "2026-11-11" };
+    assert.deepEqual(clarificationItem(clarification, "target", TODAY), { op: intent, id: "target", [field]: "2026-11-11" });
+    const invalid = clarificationItem(clarification, "target", TODAY, "2099-01-01");
+    assert.ok(validateAgentWrites([invalid], { today: TODAY }).length > 0);
+  }
+});
+
+test("浏览器与 Sites Function 的协议副本保持一致", () => {
+  assert.equal(readFileSync(new URL("../web/agent-protocol.js", import.meta.url), "utf8"), readFileSync(new URL("../functions/agent-protocol.js", import.meta.url), "utf8"));
 });
 
 test("跨周日期解析：记录用过去时，目标到期用将来时", () => {
