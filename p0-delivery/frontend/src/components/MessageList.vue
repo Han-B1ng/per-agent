@@ -4,7 +4,7 @@ import type { Workspace } from "../composables/useWorkspace";
 import type { EventRecord, RestRecord } from "../types";
 
 const ws = inject<Workspace>("workspace")!;
-const { personal, typing, focusMode, conversationOpen, closeConversation, findPending, confirmPending, denyPending, retryFailed, resolveClarificationCandidate, cancelClarification } = ws;
+const { personal, typing, focusMode, conversationOpen, composerExtra, closeConversation, findPending, confirmPending, denyPending, retryFailed, resolveClarificationCandidate, cancelClarification } = ws;
 const scrollEl = ref<HTMLElement | null>(null);
 const stickToBottom = ref(true);
 
@@ -26,6 +26,10 @@ function denyCard(id: string) {
   if (pending) denyPending(id, pending.kind);
 }
 watch([() => personal.value.chat.length, typing], async () => {
+  await nextTick();
+  if (stickToBottom.value) scrollBottom();
+});
+watch(() => composerExtra.value, async () => {
   await nextTick();
   if (stickToBottom.value) scrollBottom();
 });

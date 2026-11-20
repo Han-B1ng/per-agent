@@ -705,3 +705,8 @@ body { background: var(--pe-color-surface-canvas); }
   .compose-area { width: calc(100% - 28px); }
   .conversation { max-height: calc(100% - var(--market-height, 0px) - 118px); }
 }
+
+/* Keep the latest reply above the fixed composer, including multi-line drafts */
+.workspace[data-mode="focus"] .messages { padding-bottom: calc(150px + var(--composer-extra, 0px)); }
+.quick-actions { bottom: calc(80px + var(--composer-extra, 0px)); }
+.conversation:not(.is-focus) { max-height: calc(100% - var(--market-height, 0px) - 118px - var(--composer-extra, 0px)); }
