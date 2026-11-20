@@ -136,6 +136,10 @@ export function getClientId() {
 
 let seq = 0;
 export function genId(prefix) {
+  try {
+    const cryptoApi = globalThis.crypto;
+    if (cryptoApi && typeof cryptoApi.randomUUID === "function") return `${prefix}_${cryptoApi.randomUUID()}`;
+  } catch {}
   seq += 1;
   return `${prefix}_${Date.now().toString(36)}_${seq.toString(36)}`;
 }

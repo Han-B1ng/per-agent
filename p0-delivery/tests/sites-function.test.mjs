@@ -2,7 +2,7 @@
 // 真实 QCA 执行需部署 + qoder 后端（QODER_PAT），另行记录，不在此冒充。
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHandler } from "../functions/handler.mjs";
+import { createHandler } from "../dist-functions/handler.mjs";
 
 const TODAY = "2026-11-17";
 const qcaPayload = {
