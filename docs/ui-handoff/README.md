@@ -23,9 +23,10 @@ npm run test:ui      # 三态、主题、页面与核心流程；生成本目录
 ## 2026-11-21 增补：本机数据 JSON 恢复
 
 - 入口：设置 → 本机数据，在「导出我的 JSON」旁新增「从 JSON 恢复」。
-- 截图：`screenshots/25-restore-settings.png`（入口）、`26-restore-confirm.png`（校验通过后的覆盖确认）、`29-restore-invalid-file.png`（文件无效 / 版本暂不支持）、`27-restore-storage-failed.png`（浏览器写入失败，原账本未改动）、`28-persist-unsaved.png`（普通记账未保存）。
-- 连续录屏：`videos/restore-flow-1440x900.webm`（导出 → 清空 → 选择备份 → 校验 → 确认覆盖 → 行情/目标/记录同步 → 刷新一致）；`videos/restore-write-retry-1440x900.webm`（模拟 localStorage 写入失败 → 未保存且无成功回执 → 恢复存储后重试成功）。
-- 复跑：`cd p0-delivery && npm run test:restore`（46 项）。
+- 验收媒体保留在 [PR #20](https://github.com/Han-B1ng/per-agent/pull/20) 的 `632ac5b` 提交，不进入 `main`：
+  - 截图：[25 入口](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/25-restore-settings.png)、[26 覆盖确认](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/26-restore-confirm.png)、[29 文件无效](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/29-restore-invalid-file.png)、[27 写入失败](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/27-restore-storage-failed.png)、[28 普通记账未保存](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/screenshots/28-persist-unsaved.png)。
+  - 录屏：[restore-flow](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/videos/restore-flow-1440x900.webm)（导出 → 清空 → 选择备份 → 校验 → 确认覆盖 → 行情/目标/记录同步 → 刷新一致）；[restore-write-retry](https://github.com/Han-B1ng/per-agent/blob/632ac5b/docs/ui-handoff/videos/restore-write-retry-1440x900.webm)（模拟 localStorage 写入失败 → 未保存且无成功回执 → 恢复存储后重试成功）。
+- 复跑：`cd p0-delivery && npm run test:restore`（50 项）。
 
 ## 本轮范围
 
