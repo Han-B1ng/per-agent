@@ -599,3 +599,109 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 .is-empty-personal canvas { display: none !important; }
 .is-empty-personal .chart { background: #101114; }
+
+/* ===== Semantic themes (Penpot tokens) ===== */
+:root {
+  --bg: var(--pe-color-surface-canvas);
+  --surface: var(--pe-color-surface-panel);
+  --surface-2: var(--pe-color-surface-input);
+  --text: var(--pe-color-text-primary);
+  --muted: var(--pe-color-text-muted);
+  --faint: var(--pe-color-text-helper);
+  --line: var(--pe-color-border-default);
+  --up: var(--pe-color-chart-up);
+  --down: var(--pe-color-chart-down);
+  --warn: var(--pe-color-status-warning);
+}
+[data-pe-theme="light"] { color-scheme: light; }
+html, body { background: var(--pe-color-surface-canvas); color: var(--pe-color-text-primary); }
+body { background: var(--pe-color-surface-canvas); }
+.workspace { background: radial-gradient(ellipse at 48% -10%, color-mix(in srgb, var(--pe-color-surface-panel) 78%, transparent) 0%, transparent 55%), var(--pe-color-surface-canvas); }
+.sidebar { background: color-mix(in srgb, var(--pe-color-surface-sidebar) 96%, transparent); border-color: var(--pe-color-border-separator); }
+.sidebar-brand, .brand-mark { border-color: var(--pe-color-border-default); background: var(--pe-color-surface-raised); }
+.brand-name, .topbar-heading h1 { color: var(--pe-color-text-primary); }
+.nav-item { color: var(--pe-color-text-muted); }
+.nav-item:hover { color: var(--pe-color-text-primary); background: var(--pe-color-surface-raised); }
+.nav-item[aria-current="page"] { color: var(--pe-color-text-primary); border-color: var(--pe-color-border-default); background: var(--pe-color-surface-selected); }
+.topbar { border-color: var(--pe-color-border-separator); }
+.topbar-market-label, .chart-range, .quote-block h2, .market-stats dt, .goal-due, .record-type, .record-date span, .weekly-row-meta, .weekly-empty { color: var(--pe-color-text-muted); }
+.market-card { border-color: var(--pe-color-border-default); background: linear-gradient(160deg, var(--pe-color-surface-panel), var(--pe-color-surface-summary)); box-shadow: inset 0 1px color-mix(in srgb, var(--pe-color-surface-raised) 50%, transparent); }
+.quote-pill, .topbar-change { color: var(--pe-color-status-positive); background: var(--pe-color-status-positive-bg); }
+.quote-pill.neg, .topbar-change.neg { color: var(--pe-color-status-negative); background: var(--pe-color-status-negative-bg); }
+.quote-pill.empty { color: var(--pe-color-text-muted); background: var(--pe-color-surface-raised); }
+.market-stats > div { border-color: var(--pe-color-border-metric-divider); }
+.chart-toolbar, .conversation-heading, .goal-card-foot, .done-list, .record-row, .drawer-section, .record-facts, .weekly-contrib-row { border-color: var(--pe-color-border-subtle); }
+.chart-range, .week-vol, .drawer-sub, .goal-meta, .record-quote small { color: var(--pe-color-text-muted); }
+.chart-detail-btn, .action-btn, .mini-btn, .card-btn, .quick-actions button, .pending-filter, .back-market, .review-week-picker select { background: var(--pe-color-surface-control-secondary); border-color: var(--pe-color-border-default); color: var(--pe-color-text-primary); }
+.chart-detail-btn:hover, .action-btn:hover, .mini-btn:hover, .card-btn:hover, .quick-actions button:hover { background: var(--pe-color-surface-raised); }
+.action-btn.primary, .goals-heading .action-btn.primary, .panel-foot .action-btn.primary, .drawer-footer .action-btn.primary, .confirm-actions .action-btn.primary, .card-btn.primary, .record-empty .action-btn.primary { background: var(--pe-color-status-positive-bg); border-color: var(--pe-color-status-positive-border); color: var(--pe-color-status-positive); }
+.action-btn.danger, .mini-btn.danger, .clear-btn { color: var(--pe-color-status-negative); border-color: var(--pe-color-status-negative-border-subtle); }
+.composer { background: var(--pe-color-surface-input); border-color: var(--pe-color-border-input-emphasis); }
+.composer textarea, .goal-form input, .goal-form select, .record-filters input, .record-filters select, .edit-form input, .edit-form textarea, .pending-editor input, .review-week-picker select { background: var(--pe-color-surface-input); border-color: var(--pe-color-border-default); color: var(--pe-color-text-primary); }
+.composer textarea::placeholder, .record-filters input::placeholder { color: var(--pe-color-text-muted); }
+.send { background: var(--pe-color-text-primary); color: var(--pe-color-text-inverse); }
+.send:disabled { background: var(--pe-color-surface-control-secondary); color: var(--pe-color-text-muted); }
+.quick-actions button { box-shadow: none; }
+.message { background: var(--pe-color-surface-assistant-message); border-color: var(--pe-color-border-subtle); color: var(--pe-color-text-primary); }
+.message[data-author="user"] { background: var(--pe-color-surface-message-user); }
+.msg-card { background: var(--pe-color-surface-raised); border-color: var(--pe-color-border-subtle); }
+.msg-card.failed { background: var(--pe-color-status-negative-bg); border-color: var(--pe-color-status-negative-border); }
+.card-btn { background: var(--pe-color-surface-control-secondary); }
+.card-btn.primary { background: var(--pe-color-status-positive-bg); color: var(--pe-color-status-positive); }
+.data-switch { border-color: var(--pe-color-border-default); }
+.data-switch button[aria-pressed="true"] { background: var(--pe-color-surface-selected); color: var(--pe-color-text-primary); }
+.active-card, .goal-create-panel, .drawer, .confirm-dialog { background: var(--pe-color-surface-panel); border-color: var(--pe-color-border-default); }
+.active-card:hover { background: var(--pe-color-surface-raised); }
+.goal-meter-track { background: var(--pe-color-surface-control-secondary); }
+.goal-success { background: var(--pe-color-status-positive-bg); border-color: var(--pe-color-status-positive-border); color: var(--pe-color-status-positive); }
+.goal-success p, .goal-card-foot, .section-heading > span, .goal-empty, .record-empty p { color: var(--pe-color-text-secondary); }
+.badge.open, .weekly-row-meta, .status-badge.open { color: var(--pe-color-status-positive); background: var(--pe-color-status-positive-bg); }
+.badge.overdue, .status-badge.overdue { color: var(--pe-color-status-negative); background: var(--pe-color-status-negative-bg); }
+.badge.paused, .status-badge.paused { color: var(--pe-color-status-warning); background: var(--pe-color-status-warning-bg); }
+.badge.done { color: var(--pe-color-text-muted); background: var(--pe-color-surface-raised); }
+.record-row:hover { background: color-mix(in srgb, var(--pe-color-surface-raised) 55%, transparent); }
+.record-value.pos, .weekly-contrib-value, .contrib.pos { color: var(--pe-color-chart-up); }
+.record-value.neg, .contrib.neg { color: var(--pe-color-chart-down); }
+.record-value.pending, .record-type span, .contribution-status { color: var(--pe-color-status-warning); background: var(--pe-color-status-warning-bg); }
+.record-filters .search-field, .record-filters .date-filter { background: var(--pe-color-surface-input); border-color: var(--pe-color-border-default); }
+.link-chip, .service-state, .record-empty .empty-icon { background: var(--pe-color-surface-raised); border-color: var(--pe-color-border-default); }
+.records-tabs button { background: var(--pe-color-surface-control-secondary); border-color: var(--pe-color-border-default); color: var(--pe-color-text-muted); }
+.records-tabs button[aria-selected="true"] { background: var(--pe-color-surface-selected); color: var(--pe-color-text-primary); }
+.goal-create-scrim, .confirm-scrim, .drawer-scrim { background: color-mix(in srgb, var(--pe-color-overlay-scrim) 68%, transparent); }
+.panel-head, .drawer-head, .drawer-footer, .panel-foot, .weekly-head { border-color: var(--pe-color-border-subtle); }
+.settings-block { border-color: var(--pe-color-border-subtle); }
+.source-quote blockquote, .drawer-section, .goal-create-panel .goal-form { color: var(--pe-color-text-body-alt); }
+.theme-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.theme-options button { padding: 7px 12px; border: 1px solid var(--pe-color-border-default); border-radius: 7px; background: var(--pe-color-surface-control-secondary); color: var(--pe-color-text-secondary); font-size: 11px; }
+.theme-options button[aria-pressed="true"] { border-color: var(--pe-color-border-focus); background: var(--pe-color-surface-selected); color: var(--pe-color-text-primary); }
+/* Scoped weekly panel surfaces */
+.weekly-index, .weekly-row, .weekly-contrib-row { background: var(--pe-color-surface-panel) !important; border-color: var(--pe-color-border-default) !important; }
+.weekly-row:hover, .weekly-contrib-row:hover { background: var(--pe-color-surface-raised) !important; }
+.weekly-empty { background: transparent !important; border-color: var(--pe-color-border-default) !important; color: var(--pe-color-text-muted) !important; }
+.weekly-head h2 { color: var(--pe-color-text-primary); }
+.weekly-controls .review-week-picker select { background: var(--pe-color-surface-input); color: var(--pe-color-text-primary); }
+/* Scrollbar */
+.message-scroll, .drawer-body, .page-view, .composer textarea { scrollbar-color: var(--pe-color-scrollbar-thumb) transparent; }
+.pending-error, .field-error { flex-basis: 100%; margin: 2px 0 0; color: var(--pe-color-status-negative); font-size: 10px; line-height: 1.5; }
+
+/* ===== Stable three-state anchor ===== */
+.app-shell { grid-template-rows: auto minmax(0, 1fr); }
+.compose-area { position: fixed; left: 50%; bottom: 0; z-index: 25; width: min(704px, calc(100% - 40px)); height: 76px; padding: 0; transform: translateX(-50%); }
+.composer { position: absolute; left: 0; right: 0; bottom: 18px; margin: 0; }
+.quick-actions { position: absolute; left: 2px; bottom: 80px; margin: 0; }
+.compose-hint { position: absolute; left: 2px; right: 2px; bottom: 3px; margin: 0; }
+.conversation { max-height: calc(100% - var(--market-height, 0px) - 118px); }
+.conversation.is-collapsed { visibility: hidden; opacity: 0; pointer-events: none; }
+.workspace[data-mode="focus"] .compose-area { position: fixed; }
+@media (max-height: 760px) {
+  .chart { height: 150px; }
+  .market { padding-top: 16px; }
+  .market-card { padding-top: 16px; padding-bottom: 12px; }
+  .market-summary { margin-bottom: 0; }
+  .quote-block h2 { margin-bottom: 9px; }
+  .chart-toolbar { margin: 11px 0 4px; padding-bottom: 7px; }
+}
+@media (max-width: 760px) {
+  .compose-area { width: calc(100% - 28px); }
+  .conversation { max-height: calc(100% - var(--market-height, 0px) - 118px); }
+}

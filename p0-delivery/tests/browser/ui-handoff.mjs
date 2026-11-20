@@ -108,10 +108,28 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
 {
   const { context, page } = await newPage({ seed: seedLedger({ chatCount: 1 }) });
   await personal(page);
+  check("24 有历史时默认仍折叠对话", (await page.locator(".conversation").isVisible()) === false, await page.locator(".conversation").isVisible());
+  const before = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
   await page.click("#entry");
   await page.waitForTimeout(350);
+  const after = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode }));
   await shot(page, "24-input-focus.png");
-  check("24 输入聚焦展开最近对话且图表不动", (await page.locator(".conversation").isVisible()) && (await page.locator(".conversation-heading").isVisible()) && (await page.locator(".quick-actions").isVisible()) && (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "market", await page.evaluate(() => document.querySelector(".workspace").dataset.mode));
+  check("24 输入聚焦展开最近对话且图表/输入框不动", (await page.locator(".conversation").isVisible()) && (await page.locator(".conversation-heading").isVisible()) && (await page.locator(".quick-actions").isVisible()) && after.mode === "market" && before.input === after.input && before.chart.y === after.chart.y && before.chart.height === after.chart.height, JSON.stringify({ before, after }));
+  await page.click(".conversation-heading button", { hasText: "收起对话" });
+  await page.waitForTimeout(250);
+  check("24 收起对话后恢复折叠", (await page.locator(".conversation").isVisible()) === false && (await page.evaluate(() => document.querySelector(".workspace").dataset.mode)) === "market", await page.locator(".conversation").isVisible());
+  await context.close();
+}
+
+/* 720 short history */
+{
+  const { context, page } = await newPage({ seed: seedLedger({ chatCount: 1 }), width: 1440, height: 720 });
+  await personal(page);
+  const before = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top }));
+  await page.click("#entry");
+  await page.waitForTimeout(350);
+  const after = await page.evaluate(() => ({ chart: document.querySelector(".market").getBoundingClientRect().toJSON(), input: document.querySelector(".composer").getBoundingClientRect().top, mode: document.querySelector(".workspace").dataset.mode, content: document.querySelector(".conversation").scrollHeight }));
+  check("720 有两条短消息时首次聚焦仍保持行情", after.mode === "market" && after.input === before.input && after.chart.height === before.chart.height, JSON.stringify({ before, after }));
   await context.close();
 }
 
@@ -170,6 +188,38 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await context.close();
 }
 
+/* Themes */
+{
+  const { context, page } = await newPage({ seed: seedLedger({ chatCount: 1 }) });
+  await personal(page);
+  const darkCanvas = await page.locator("#candles").evaluate((canvas) => canvas.toDataURL());
+  await page.click("#settings-open");
+  await page.waitForTimeout(250);
+  await page.click('[data-testid="theme-light"]');
+  await page.waitForTimeout(350);
+  await page.click("#drawer-close");
+  await page.waitForTimeout(300);
+  const light = await page.evaluate(() => ({ theme: document.documentElement.dataset.peTheme, bg: getComputedStyle(document.body).backgroundColor, stored: localStorage.getItem("pe.theme.v1") }));
+  const lightCanvas = await page.locator("#candles").evaluate((canvas) => canvas.toDataURL());
+  check("主题：晨雾切换并重绘 Canvas", light.theme === "light" && light.stored === "light" && light.bg === "rgb(243, 243, 239)" && lightCanvas !== darkCanvas, JSON.stringify({ light, changed: lightCanvas !== darkCanvas }));
+  await shot(page, "theme-light.png");
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(300);
+  check("主题：刷新保留选择", (await page.evaluate(() => document.documentElement.dataset.peTheme)) === "light", await page.evaluate(() => document.documentElement.dataset.peTheme));
+  await page.click("#settings-open");
+  await page.waitForTimeout(200);
+  await page.click('[data-testid="theme-midnight"]');
+  await page.waitForTimeout(300);
+  await page.click("#drawer-close");
+  await page.waitForTimeout(250);
+  const midnight = await page.evaluate(() => ({ theme: document.documentElement.dataset.peTheme, bg: getComputedStyle(document.body).backgroundColor }));
+  check("主题：午夜蓝切换", midnight.theme === "midnight" && midnight.bg === "rgb(13, 21, 36)", JSON.stringify(midnight));
+  await shot(page, "theme-midnight.png");
+  await page.click("#settings-open");
+  await page.click('[data-testid="theme-dark"]');
+  await context.close();
+}
+
 /* Empty states */
 {
   const { context, page } = await newPage();
@@ -201,8 +251,16 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   await pendingRow.click();
   await page.waitForTimeout(300);
   await shot(page, "09-record-pending.png");
+  await page.locator(".edit-form input[type=date]").first().fill(day(1));
+  await page.locator("#drawer-body button", { hasText: "按此日期确认" }).click();
+  await page.waitForTimeout(300);
+  check("待确认：抽屉拒绝未来日期并保持 pending", (await state(page)).events.some((event) => event.quote.includes("前阵子") && event.status === "pending") && (await page.locator("#pending-error").isVisible()), await page.locator("#pending-error").textContent());
   await page.click("#drawer-close");
   await page.waitForTimeout(200);
+  await pendingRow.locator(".pending-editor input").fill(day(1));
+  await pendingRow.locator(".pending-editor button", { hasText: "确认" }).click();
+  await page.waitForTimeout(250);
+  check("待确认：行内拒绝未来日期并保持 pending", (await state(page)).events.some((event) => event.quote.includes("前阵子") && event.status === "pending") && (await pendingRow.locator(".pending-error").isVisible()), await pendingRow.locator(".pending-error").textContent());
   await pendingRow.locator(".pending-editor input").fill(day(-7));
   await pendingRow.locator(".pending-editor button", { hasText: "确认" }).click();
   await page.waitForTimeout(350);
@@ -218,6 +276,13 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
   check("核心流程：新增目标落账", Boolean(created) && created.status === "open", created?.id);
   await page.locator("#active-goals .goal-card", { hasText: "完成数据库课设" }).locator("button", { hasText: "详情" }).click();
   await page.waitForTimeout(300);
+  await page.locator(".drawer-footer button", { hasText: "完成目标" }).click();
+  await page.waitForTimeout(250);
+  const focusInside = await page.evaluate(() => Boolean(document.querySelector(".confirm-dialog")?.contains(document.activeElement)));
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(250);
+  const escaped = await page.evaluate(() => ({ open: Boolean(document.querySelector(".confirm-dialog")), drawer: Boolean(document.querySelector("#drawer")), focus: document.activeElement?.textContent?.trim() }));
+  check("弹窗：焦点进入、Esc 优先取消并回到触发按钮", focusInside && !escaped.open && escaped.drawer && escaped.focus.includes("完成目标"), JSON.stringify({ focusInside, escaped }));
   await page.locator(".drawer-footer button", { hasText: "完成目标" }).click();
   await page.waitForTimeout(250);
   await shot(page, "12-goal-complete-confirm.png");
@@ -258,7 +323,7 @@ const go = async (page, name) => { await page.click(`[data-page-target="${name}"
 
 await browser.close();
 server.close();
-await writeFile(path.join(DOCS, "acceptance.json"), JSON.stringify({ generatedAt: new Date().toISOString(), today, results, screenshots: ["01-market.png", "24-input-focus.png", "02-conversation-focus.png", "03-goals.png", "04-goal-detail.png", "05-records.png", "06-weekly-review.png", "08-goal-create.png", "09-record-pending.png", "10-record-detail.png", "11-settings.png", "12-goal-complete-confirm.png", "13-goal-completed.png", "20-market-personal-empty.png", "21-records-empty.png", "22-records-no-results.png"] }, null, 2));
+await writeFile(path.join(DOCS, "acceptance.json"), JSON.stringify({ generatedAt: new Date().toISOString(), today, results, screenshots: ["01-market.png", "24-input-focus.png", "02-conversation-focus.png", "03-goals.png", "04-goal-detail.png", "05-records.png", "06-weekly-review.png", "08-goal-create.png", "09-record-pending.png", "10-record-detail.png", "11-settings.png", "12-goal-complete-confirm.png", "13-goal-completed.png", "20-market-personal-empty.png", "21-records-empty.png", "22-records-no-results.png", "theme-light.png", "theme-midnight.png"] }, null, 2));
 const failed = results.filter((result) => !result.pass);
 console.log(`\n${results.length - failed.length}/${results.length} UI checks passed`);
 if (failed.length) process.exitCode = 1;

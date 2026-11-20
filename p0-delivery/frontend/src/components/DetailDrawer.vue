@@ -8,10 +8,16 @@ const {
   drawer, currentWeek, selectedGoal, selectedRecord, selectedTimelineRow, auditHistory, editable,
   records, result, personal, clearArmed, view, today, modelState, closeDrawer, openEntity, openWeekForDate,
   setPage, deleteTask, deleteRecord, confirmPending, denyPending, correctRecord,
-  clearPersonalData, exportCurrent, requestCompleteTask, completionRequest, completeTask,
+  clearPersonalData, exportCurrent, requestCompleteTask, completionRequest, completeTask, theme, setTheme,
 } = ws;
+const themes = [
+  { id: "dark", label: "Dark" },
+  { id: "light", label: "晨雾" },
+  { id: "midnight", label: "午夜蓝" },
+] as const;
 const editDate = ref("");
 const editQuote = ref("");
+const pendingError = ref("");
 const fmtIndex = (n: number) => n.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 const fmtPct = (x: number) => `${x >= 0 ? "+" : ""}${(x * 100).toFixed(2)}%`;
 const fmtContrib = (c: number) => `${c > 0 ? "+" : ""}${(c * 100).toFixed(2)}%`;
@@ -37,6 +43,7 @@ const sub = computed(() => {
 const taskList = computed(() => records.value.tasks.filter((t) => t.deletedAt == null));
 const recordDate = computed(() => selectedTimelineRow.value?.date ?? (selectedRecord.value?.kind === "task" && selectedRecord.value.doneAt ? String(selectedRecord.value.doneAt).slice(0, 10) : "—"));
 watch(selectedRecord, (record) => {
+  pendingError.value = "";
   if (!record || record.kind === "task") return;
   editDate.value = record.kind === "rest" ? record.date : record.occurredAt;
   editQuote.value = record.quote;
@@ -52,7 +59,8 @@ function saveCorrection() {
 function confirmEdited() {
   const record = selectedRecord.value;
   if (!record || record.kind === "task") return;
-  confirmPending(record.id, record.kind, editDate.value);
+  const result = confirmPending(record.id, record.kind, editDate.value);
+  pendingError.value = result.ok ? "" : result.message || "这条仍待确认。";
 }
 function removeSelected() {
   const record = selectedRecord.value;
@@ -177,6 +185,7 @@ function openGoalWeek() {
                   <button v-if="selectedRecord.status === 'pending'" class="action-btn primary" type="button" @click="confirmEdited">按此日期确认</button>
                   <button class="action-btn danger" type="button" @click="removeSelected">{{ selectedRecord.status === "pending" ? "否认" : "撤销" }}</button>
                 </div>
+                <p v-if="pendingError" class="pending-error" id="pending-error" role="alert">{{ pendingError }}</p>
               </form>
             </section>
             <section v-if="editable && auditHistory.length" class="drawer-section">
@@ -188,6 +197,12 @@ function openGoalWeek() {
 
         <template v-else-if="drawer.mode === 'settings'">
           <div class="settings-panel">
+            <section class="settings-block">
+              <h3>主题</h3>
+              <div class="theme-options" role="group" aria-label="界面主题">
+                <button v-for="item in themes" :key="item.id" :data-testid="`theme-${item.id}`" type="button" :aria-pressed="theme === item.id" @click="setTheme(item.id)">{{ item.label }}</button>
+              </div>
+            </section>
             <section class="settings-block">
               <h3>本机数据</h3>
               <p>个人记录保存在当前浏览器。</p>
