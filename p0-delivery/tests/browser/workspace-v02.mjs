@@ -255,13 +255,15 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   await page.waitForTimeout(300);
   const focused = await market();
   check(`F[${tag}] 侧栏往返后首次聚焦图表不动`, initial.x === focused.x && initial.y === focused.y && initial.w === focused.w && initial.h === focused.h && focused.transform === initial.transform, JSON.stringify(focused));
+  const clickOnly = await page.evaluate(() => ({ collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
+  check(`F[${tag}] 点击输入框只聚焦不展开聊天`, clickOnly.collapsed && clickOnly.focused === "entry", JSON.stringify(clickOnly));
   await page.setViewportSize({ width: 1100, height: Math.max(620, height - 100) });
   await page.waitForTimeout(400);
   check(`F[${tag}] 缩窗未按消息条数误触专注`, (await market()).mode === "market", JSON.stringify(await market()));
   await page.setViewportSize({ width, height });
   await send(page, "长消息换行验证。".repeat(180), 900);
-  const overflow = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, messages: document.querySelector(".conversation").scrollHeight, available: document.querySelector(".stage").clientHeight - document.querySelector(".market").offsetHeight - 12, scrollable: document.querySelector(".message-scroll").scrollHeight > document.querySelector(".message-scroll").clientHeight, composerBottom: document.querySelector(".composer").getBoundingClientRect().bottom, vh: innerHeight }));
-  check(`F[${tag}] 长消息实际溢出才进入专注`, overflow.mode === "focus" && overflow.messages > overflow.available && overflow.scrollable && overflow.composerBottom <= overflow.vh, JSON.stringify(overflow));
+  const sent = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, scrollable: document.querySelector(".message-scroll").scrollHeight > document.querySelector(".message-scroll").clientHeight, composerBottom: document.querySelector(".composer").getBoundingClientRect().bottom, vh: innerHeight }));
+  check(`F[${tag}] 发送后直接进入专注`, sent.mode === "focus" && sent.scrollable && sent.composerBottom <= sent.vh, JSON.stringify(sent));
   check(`F[${tag}] 控制台无错误`, page._errors.length === 0, page._errors.join("|") || "clean");
   await closeVideo(context, page, path.join(ROOT, `assets/videos/v02-market-${tag}.webm`));
 }
@@ -290,6 +292,7 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
 {
   const { context, page } = await newPage();
   const day = await today(page);
+  await page.click("#view-personal"); await page.waitForTimeout(300);
   let release;
   const gate = new Promise((resolve) => { release = resolve; });
   await page.route("**/api/extract", async (route) => {

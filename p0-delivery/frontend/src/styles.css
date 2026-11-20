@@ -59,7 +59,7 @@ button:focus-visible, textarea:focus-visible, input:focus-visible, select:focus-
 
 .stage { position: relative; width: min(1120px, calc(100% - 96px)); min-width: 0; min-height: 0; margin: 0 auto; overflow: clip; }
 .market { position: absolute; top: 0; left: 0; right: 0; min-width: 0; display: flex; flex-direction: column; gap: clamp(12px, 2dvh, 20px); padding-top: clamp(18px, 3dvh, 32px); transform-origin: 50% 42%; transition: transform .55s var(--ease), opacity .55s var(--ease), filter .55s var(--ease); }
-.workspace[data-mode="focus"] .market { transform: scale(1.24); opacity: .13; filter: blur(3px); pointer-events: none; }
+.workspace[data-mode="focus"] .market { pointer-events: none; }
 .market-summary { display: flex; align-items: flex-end; justify-content: space-between; gap: 28px; min-width: 0; }
 .quote-block { min-width: 0; }
 .quote-block h2 { margin: 0 0 8px; color: var(--muted); font-size: 12px; font-weight: 500; }
@@ -359,15 +359,15 @@ canvas { display: block; width: 100%; height: 100%; }
 .chart-range { color: var(--muted); font: 10px var(--mono); }
 .chart-detail-btn { padding: 6px 10px; border: 1px solid var(--line); border-radius: 7px; background: transparent; color: var(--text); font-size: 11px; }
 .chart-detail-btn:hover { background: #ffffff0b; }
-.chart { height: clamp(240px, 33dvh, 390px); padding: 0; border: 0; border-radius: 0; background: transparent; }
+.chart { height: clamp(240px, 33dvh, 390px); padding: 0; border: 0; border-radius: 0; background: transparent; transition: transform .55s var(--ease), opacity .55s var(--ease), filter .55s var(--ease); }
 .plot { margin-top: 8px; }
 .single-week-note { left: 2px; bottom: 2px; }
 .is-empty-personal .chart canvas { visibility: hidden; }
 .market-empty { position: absolute; inset: 36px 0 0; display: grid; place-content: center; justify-items: center; text-align: center; pointer-events: none; }
 .market-empty h3 { margin: 0 0 8px; font-size: 16px; font-weight: 560; }
 .market-empty p { margin: 0; color: var(--muted); font-size: 11px; }
-.workspace[data-mode="focus"] .market { transform: scale(1.24); opacity: .13; filter: blur(3px); }
-.workspace[data-mode="focus"] .chart { height: clamp(300px, 52dvh, 480px); }
+.workspace[data-mode="focus"] .market { pointer-events: none; }
+.workspace[data-mode="focus"] .chart { transform: scale(1.24); opacity: .13; filter: blur(3px); }
 .workspace[data-mode="focus"] .chart-toolbar, .workspace[data-mode="focus"] .market-summary { opacity: 0; }
 .conversation { top: calc(var(--market-height, 0px) + 10px); max-height: calc(100% - var(--market-height, 0px) - 10px); width: min(704px, 100%); }
 .conversation-inner { gap: 0; }
@@ -710,3 +710,18 @@ body { background: var(--pe-color-surface-canvas); }
 .workspace[data-mode="focus"] .messages { padding-bottom: calc(150px + var(--composer-extra, 0px)); }
 .quick-actions { bottom: calc(80px + var(--composer-extra, 0px)); }
 .conversation:not(.is-focus) { max-height: calc(100% - var(--market-height, 0px) - 118px - var(--composer-extra, 0px)); }
+
+/* Center the fixed composer in the main column so it aligns with the conversation */
+.workspace { --shell-sidebar: 184px; }
+.compose-area { left: calc(50% + var(--shell-sidebar) / 2); width: min(704px, calc(100% - var(--shell-sidebar) - 56px)); }
+@media (max-width: 760px) {
+  .workspace { --shell-sidebar: 0px; }
+  .compose-area { left: 50%; width: min(704px, calc(100% - 28px)); }
+}
+
+/* Focus: card chrome exits; only the chart drawing remains as a static faded background */
+.workspace[data-mode="focus"] .market-card { background: none; border-color: transparent; box-shadow: none; }
+
+/* Two states only: the conversation appears immediately in focus, hidden in market */
+.conversation { top: 64px; transition: none; }
+.conversation.is-collapsed { visibility: hidden; opacity: 0; pointer-events: none; }

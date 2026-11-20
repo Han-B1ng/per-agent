@@ -55,6 +55,8 @@ for (const [width, height, scale] of [[1440, 900, 2], [1440, 720, 1], [390, 844,
   await page.waitForTimeout(350);
   const after = await page.evaluate(() => { const r = document.querySelector(".market").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height, mode: document.querySelector(".workspace").dataset.mode }; });
   check(`视觉[${tag}] 首次聚焦图表不动`, before.x === after.x && before.y === after.y && before.w === after.w && before.h === after.h && after.mode === "market", JSON.stringify(after));
+  const clickOnly = await page.evaluate(() => ({ collapsed: Boolean(document.querySelector(".conversation.is-collapsed")), focused: document.activeElement?.id }));
+  check(`视觉[${tag}] 点击输入框只聚焦不展开聊天`, clickOnly.collapsed && clickOnly.focused === "entry", JSON.stringify(clickOnly));
   await shot(page, `vue-market-${tag}-input-focus`);
   await send(page, "今天跑了五公里。");
   await shot(page, `vue-market-${tag}-messages`);
@@ -71,9 +73,30 @@ for (const [width, height, scale] of [[1440, 900, 2], [1440, 720, 1], [390, 844,
     await page.waitForTimeout(450);
   }
   if (await page.locator("#view-toggle").isVisible()) { await page.click("#view-toggle"); await page.waitForTimeout(900); }
+  const chartHeightBefore = await page.evaluate(() => document.querySelector(".chart").offsetHeight);
   for (let i = 0; i < 3 && (await mode(page)) !== "focus"; i++) await send(page, "长消息换行验证。".repeat(180), 900);
-  const focusState = await page.evaluate(() => ({ mode: document.querySelector(".workspace").dataset.mode, scrollable: document.querySelector(".message-scroll").scrollHeight > document.querySelector(".message-scroll").clientHeight, composerBottom: document.querySelector(".composer").getBoundingClientRect().bottom, vh: innerHeight, transform: getComputedStyle(document.querySelector(".market")).transform, opacity: getComputedStyle(document.querySelector(".market")).opacity }));
-  check(`视觉[${tag}] 实际溢出进入专注且输入框不跳动`, focusState.mode === "focus" && focusState.scrollable && focusState.composerBottom <= focusState.vh && focusState.transform.includes("1.24"), JSON.stringify(focusState));
+  const focusState = await page.evaluate(() => {
+    const market = getComputedStyle(document.querySelector(".market"));
+    const chartEl = document.querySelector(".chart");
+    const chart = getComputedStyle(chartEl);
+    const card = getComputedStyle(document.querySelector(".market-card"));
+    const toolbar = getComputedStyle(document.querySelector(".chart-toolbar"));
+    const summary = getComputedStyle(document.querySelector(".market-summary"));
+    return {
+      mode: document.querySelector(".workspace").dataset.mode,
+      scrollable: document.querySelector(".message-scroll").scrollHeight > document.querySelector(".message-scroll").clientHeight,
+      composerBottom: document.querySelector(".composer").getBoundingClientRect().bottom,
+      vh: innerHeight,
+      marketTransform: market.transform, marketOpacity: market.opacity, marketFilter: market.filter,
+      chartTransform: chart.transform, chartOpacity: chart.opacity, chartFilter: chart.filter, chartHeight: chartEl.offsetHeight,
+      cardBackground: card.backgroundImage, cardBorder: card.borderTopColor,
+      toolbarOpacity: toolbar.opacity, summaryOpacity: summary.opacity,
+    };
+  });
+  const chromeGone = focusState.cardBackground === "none" && (focusState.cardBorder === "rgba(0, 0, 0, 0)" || focusState.cardBorder === "transparent") && parseFloat(focusState.toolbarOpacity) === 0 && parseFloat(focusState.summaryOpacity) === 0;
+  const chartOnly = focusState.chartTransform.includes("1.24") && parseFloat(focusState.chartOpacity) < 0.2 && focusState.chartFilter.includes("blur");
+  check(`视觉[${tag}] 发送后只放大K线且卡片退场`, focusState.mode === "focus" && focusState.scrollable && focusState.composerBottom <= focusState.vh && chartOnly && chromeGone && parseFloat(focusState.marketOpacity) > 0.9 && !focusState.marketTransform.includes("1.24") && !focusState.marketFilter.includes("blur"), JSON.stringify(focusState));
+  check(`视觉[${tag}] 专注不改变K线绘图区高度`, Math.abs(focusState.chartHeight - chartHeightBefore) < 1, `${chartHeightBefore} -> ${focusState.chartHeight}`);
   await shot(page, `vue-market-${tag}-focus`);
   if (await page.locator("#view-toggle").isVisible()) { await page.click("#view-toggle"); await page.waitForTimeout(900); }
   check(`视觉[${tag}] 返回行情保留消息`, (await mode(page)) === "market" && (await page.locator(".message").count()) >= 2, await mode(page));

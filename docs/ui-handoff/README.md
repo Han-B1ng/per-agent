@@ -1,6 +1,6 @@
 # 桌面 UI 实现与验收（2026-11-20）
 
-设计来源：`/Users/han_b1ng/Han_B1ng/code/aicode/per-agent-design-handoff/` 的正式画板（1440 × 900）。本轮按「行情 01 → 24 → 02 三态 → 目标中心 → 成长记录 → 设置」落地，沿用现有账本、计分与模型接口。
+设计来源：[Penpot 正式画板](https://design.penpot.app/?screen=workspace&file-id=42288968-6e5e-808d-8008-f86131caebf5&page-id=42288968-6e5e-808d-8008-f86131caebf6)（本地交付件位于 `.local/design-handoff/`）（1440 × 900）。本轮按「行情 01 → 24 → 02 三态 → 目标中心 → 成长记录 → 设置」落地，沿用现有账本、计分与模型接口。
 
 ## 预览与验收
 
@@ -15,12 +15,14 @@ npm run test:ui      # 三态、主题、页面与核心流程；生成本目录
 - 页面与抽屉：`03-goals.png`、`04-goal-detail.png`、`05-records.png`、`06-weekly-review.png`、`08-goal-create.png`、`09-record-pending.png`、`10-record-detail.png`、`11-settings.png`
 - 完成闭环：`12-goal-complete-confirm.png`、`13-goal-completed.png`
 - 空态：`20-market-personal-empty.png`、`21-records-empty.png`、`22-records-no-results.png`
-- 连续录屏：`videos/core-flow-1440x900.webm`（个人行情 → 输入聚焦 → 记录行为 → 待确认抽屉 → 确认 → 新建目标 → 完成确认 → 成功态 → 成长记录 → 本周复盘 → 周 K 明细 → 设置）
+- 连续录屏：`videos/core-flow-1440x900.webm`（个人行情 → 点击输入框 → 发送进入专注 → 记录行为 → 待确认抽屉 → 确认 → 新建目标 → 完成确认 → 成功态 → 成长记录 → 本周复盘 → 周 K 明细 → 设置）
+- 顺序录屏（交付，已裁去开头准备段）：`videos/market-focus-sequence-1440x900.webm`（点击输入框 → 发送 → 直接进入专注 → 返回行情）
+- 顺序录屏原始完整版：`videos/market-focus-sequence-raw-1440x900.webm`
 - 原始断言：`acceptance.json`
 
 ## 本轮范围
 
-- 行情三态：默认单行输入；输入聚焦展开最近对话/快捷操作；内容实际溢出后进入专注，背景 K 线淡化，顶部保留点位与返回行情。
+- 行情两态：行情态只显示指数、周 K、明细入口和底部输入框；点击输入框只聚焦，聊天历史和快捷提示收起。有效发送（点击发送与 Enter 同一逻辑）立即进入专注：马上显示用户消息和等待态，卡片底色/边框/摘要/工具栏退场，仅原周 K 绘图区放大渐隐、过渡后静止且绘图区高度不变，页头保留点位、涨跌幅与返回行情；聊天区独立滚动、输入框留底，返回行情收起聊天并保留历史与草稿。样例页闲聊不切换数据视图，只有账本写入后才切到「我的」。
 - 目标中心：未完成卡片与已完成列表同屏；新增目标右侧面板；目标详情；完成确认弹窗；完成成功提示。
 - 成长记录：全部记录/本周复盘；搜索、日期、类型、待确认筛选；行点击详情；待确认可在行内或抽屉补充日期/确认/否认。
 - 设置：Dark / 晨雾 / 午夜蓝主题、本机数据导出/清空、模型连接状态；主题写入 `pe.theme.v1`，刷新保留，Canvas 同步重绘。

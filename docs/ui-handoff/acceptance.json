@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T11:19:33.720Z",
+  "generatedAt": "2026-11-20T14:23:24.182Z",
   "today": "2026-11-20",
   "results": [
     {
@@ -8,34 +8,114 @@
       "detail": ""
     },
     {
-      "name": "24 有历史时默认仍折叠对话",
-      "pass": true,
-      "detail": "false"
-    },
-    {
-      "name": "24 输入聚焦展开最近对话且图表/输入框不动",
-      "pass": true,
-      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828},\"after\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828,\"mode\":\"market\"}}"
-    },
-    {
-      "name": "24 收起对话后恢复折叠",
-      "pass": true,
-      "detail": "false"
-    },
-    {
-      "name": "720 有两条短消息时首次聚焦仍保持行情",
-      "pass": true,
-      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648},\"after\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648,\"mode\":\"market\",\"content\":160}}"
-    },
-    {
-      "name": "02 实际溢出进入专注并保留顶部指数",
+      "name": "24 发送前聊天历史与快捷提示收起",
       "pass": true,
       "detail": ""
     },
     {
+      "name": "24 点击输入框只改变聚焦样式",
+      "pass": true,
+      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828},\"clicked\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":514.796875,\"top\":64,\"right\":1412,\"bottom\":578.796875,\"left\":212},\"input\":828,\"mode\":\"market\",\"focused\":\"entry\",\"collapsed\":true}}"
+    },
+    {
+      "name": "24 有效发送立即进入专注并显示用户消息/等待",
+      "pass": true,
+      "detail": "{\"chartHeight\":297,\"immediate\":{\"mode\":\"focus\",\"userMessage\":true,\"typing\":true,\"conversation\":true,\"returnVisible\":true,\"quoteVisible\":true,\"cardBackground\":\"none\",\"chartHeight\":297,\"quick\":true,\"draft\":\"\"}}"
+    },
+    {
+      "name": "24 响应到达后保留完整对话",
+      "pass": true,
+      "detail": "{\"messages\":2,\"typing\":false,\"transcript\":\"你：今天跑了五公里。 助手：记下了，这条进今天的走势了。 已写入 1 项\"}"
+    },
+    {
+      "name": "24 返回行情收起聊天并保留历史/草稿",
+      "pass": true,
+      "detail": "{\"returned\":{\"mode\":\"market\",\"collapsed\":true,\"draft\":\"草稿保留\",\"messages\":2,\"quick\":false,\"chartBackground\":\"linear-gradient(160deg, rgb(20, 22, 26), rgb(23, 25, 30))\"},\"messages\":2}"
+    },
+    {
+      "name": "720 点击输入框只聚焦不展开聊天",
+      "pass": true,
+      "detail": "{\"before\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648},\"clicked\":{\"chart\":{\"x\":212,\"y\":64,\"width\":1200,\"height\":323,\"top\":64,\"right\":1412,\"bottom\":387,\"left\":212},\"input\":648,\"mode\":\"market\",\"focused\":\"entry\",\"collapsed\":true}}"
+    },
+    {
+      "name": "720 回车发送直接进入专注",
+      "pass": true,
+      "detail": "{\"mode\":\"focus\",\"conversation\":true,\"quote\":true,\"returnVisible\":true,\"messages\":2,\"quick\":true}"
+    },
+    {
+      "name": "样例闲聊保持样例数据并进入专注",
+      "pass": true,
+      "detail": "{\"sample\":{\"view\":\"true\",\"quote\":\"1,156.9\",\"candles\":true},\"chatOnly\":{\"mode\":\"focus\",\"view\":\"true\",\"personal\":\"false\",\"focusQuote\":\"1,156.9\",\"conversation\":true,\"transcript\":\"你：你好 助手：这句我先陪你聊着。可以说说今天做了什么、感觉怎么样，或者接下来要完成什么。 \",\"events\":0}}"
+    },
+    {
+      "name": "返回后样例行情保留",
+      "pass": true,
+      "detail": "{\"mode\":\"market\",\"view\":\"true\",\"quote\":\"1,156.9\",\"candles\":true,\"collapsed\":true}"
+    },
+    {
+      "name": "个人记录写入后才切换",
+      "pass": true,
+      "detail": "{\"mode\":\"focus\",\"personal\":\"true\",\"quote\":\"1,010.0\",\"events\":1}"
+    },
+    {
+      "name": "02 有效发送进入专注并保留顶部指数",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "02 专注只放大K线且卡片/工具栏退场",
+      "pass": true,
+      "detail": "{\"marketTransform\":\"none\",\"marketOpacity\":\"1\",\"marketFilter\":\"none\",\"chartTransform\":\"matrix(1.24, 0, 0, 1.24, 0, 0)\",\"chartOpacity\":\"0.13\",\"chartFilter\":\"blur(3px)\",\"chartHeight\":297,\"cardBackground\":\"none\",\"cardBorder\":\"rgba(0, 0, 0, 0)\",\"toolbarOpacity\":\"0\",\"summaryOpacity\":\"0\"}"
+    },
+    {
+      "name": "02 专注不改变K线绘图区高度",
+      "pass": true,
+      "detail": "297 -> 297"
+    },
+    {
+      "name": "02 专注对话与输入框左右对齐",
+      "pass": true,
+      "detail": "{\"cLeft\":460,\"cWidth\":704,\"iLeft\":460,\"iWidth\":704}"
+    },
+    {
       "name": "02 多行输入时最后一条消息不被输入框遮挡",
       "pass": true,
-      "detail": "{\"messageBottom\":579.5,\"composerTop\":768,\"extra\":\"60px\"}"
+      "detail": "{\"messageBottom\":689.515625,\"composerTop\":768,\"extra\":\"60px\"}"
+    },
+    {
+      "name": "顺序：点击输入框只聚焦",
+      "pass": true,
+      "detail": "{\"mode\":\"market\",\"collapsed\":true,\"focused\":\"entry\"}"
+    },
+    {
+      "name": "顺序：发送后直接进入专注并显示用户消息/等待",
+      "pass": true,
+      "detail": "{\"chartHeight\":297,\"immediate\":{\"mode\":\"focus\",\"userMessage\":true,\"typing\":true,\"conversation\":true,\"returnVisible\":true,\"quoteVisible\":true,\"change\":\"+0.75%\",\"cardBackground\":\"none\",\"chartHeight\":297,\"quick\":true}}"
+    },
+    {
+      "name": "顺序：等待结束后对话完整保留",
+      "pass": true,
+      "detail": "{\"messages\":2,\"typing\":false,\"transcript\":\"你：今天读完了一章专业书。 助手：记下了，这条进今天的走势了。 已写入 1 项\"}"
+    },
+    {
+      "name": "顺序：专注只动画K线且卡片/工具栏退场",
+      "pass": true,
+      "detail": "{\"marketTransform\":\"none\",\"marketOpacity\":\"1\",\"marketFilter\":\"none\",\"chartTransform\":\"matrix(1.24, 0, 0, 1.24, 0, 0)\",\"chartOpacity\":\"0.13\",\"chartFilter\":\"blur(3px)\",\"chartHeight\":297,\"cardBackground\":\"none\",\"cardBorder\":\"rgba(0, 0, 0, 0)\",\"toolbarOpacity\":\"0\",\"summaryOpacity\":\"0\"}"
+    },
+    {
+      "name": "顺序：专注不改变K线绘图区高度",
+      "pass": true,
+      "detail": "297 -> 297"
+    },
+    {
+      "name": "顺序：返回行情收起聊天并保留历史/草稿",
+      "pass": true,
+      "detail": "{\"returned\":{\"mode\":\"market\",\"collapsed\":true,\"draft\":\"草稿保留\",\"messages\":2,\"quick\":false,\"chartBackground\":\"linear-gradient(160deg, rgb(20, 22, 26), rgb(23, 25, 30))\"},\"messages\":2}"
+    },
+    {
+      "name": "顺序：连续视频已生成",
+      "pass": true,
+      "detail": "/Users/han_b1ng/Han_B1ng/code/aicode/dasai/docs/ui-handoff/videos/market-focus-sequence-raw-1440x900.webm"
     },
     {
       "name": "03 目标中心同屏未完成与已完成",
@@ -120,7 +200,7 @@
     {
       "name": "核心流程：新增目标落账",
       "pass": true,
-      "detail": "task_mwovzpvo_b"
+      "detail": "task_mwp2k50m_b"
     },
     {
       "name": "弹窗：焦点进入、Esc 优先取消并回到触发按钮",
@@ -155,7 +235,7 @@
     {
       "name": "连续录屏已生成",
       "pass": true,
-      "detail": "/Users/han_b1ng/Han_B1ng/code/aicode/dasai-ui-handoff/docs/ui-handoff/videos/core-flow-1440x900.webm"
+      "detail": "/Users/han_b1ng/Han_B1ng/code/aicode/dasai/docs/ui-handoff/videos/core-flow-1440x900.webm"
     }
   ],
   "screenshots": [
