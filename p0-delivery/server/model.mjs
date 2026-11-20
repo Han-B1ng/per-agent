@@ -1,6 +1,7 @@
 // 真实模型代理（OpenAI 兼容）。Key 只在服务端 env，绝不进响应/前端。
 // Agent 协议 v0.1：模型提出操作，应用校验、确认与写入；模型回复不是入账凭证。
 import { buildSystemPrompt } from "./prompt.mjs";
+import { isVaguePastItem } from "../web/agent-protocol.js";
 
 const OPS = new Set(["add_event", "add_rest", "add_task", "confirm_event", "deny_event", "delete_event", "confirm_rest", "deny_rest", "delete_rest", "complete_task", "delete_task", "request_clarification"]);
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -8,8 +9,6 @@ const CLARIFICATION_KINDS = new Set(["task_target", "record_target"]);
 const TASK_INTENTS = new Set(["complete_task", "delete_task"]);
 const EVENT_INTENTS = new Set(["confirm_event", "deny_event", "delete_event"]);
 const REST_INTENTS = new Set(["confirm_rest", "deny_rest", "delete_rest"]);
-const VAGUE_PAST = /前阵子|之前|有一次|上次|前些日子|前段时间/;
-const DATE_HINT = /昨天|昨日|前天|大前天|今天|今日|上周|周[一二三四五六日天]|礼拜|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|\d+\s*天前/;
 const FUTURE_HINT = /周[一二三四五六日天]|下周|本周|这周|礼拜|明天|后天|大后天|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|\d+\s*天(?:后|以后|之后)|\d+\s*(?:周|礼拜)(?:后|以后|之后)|月底|月末/;
 const MAX_CANDIDATES = 5;
 
@@ -115,28 +114,8 @@ function clamp01(v, dflt) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : dflt;
 }
-function clauseAroundQuote(source, quote) {
-  const textValue = String(source || "");
-  const needle = String(quote || "").trim();
-  if (!textValue || !needle) return textValue;
-  let index = textValue.indexOf(needle);
-  if (index < 0 && needle.length >= 4) index = textValue.indexOf(needle.slice(0, 4));
-  if (index < 0) return textValue;
-  const start = Math.max(textValue.lastIndexOf("，", index - 1), textValue.lastIndexOf(",", index - 1), textValue.lastIndexOf("。", index - 1), textValue.lastIndexOf("；", index - 1), textValue.lastIndexOf(";", index - 1)) + 1;
-  const ends = ["，", ",", "。", "；", ";"].map((mark) => textValue.indexOf(mark, index + needle.length)).filter((position) => position >= 0);
-  return textValue.slice(start, ends.length ? Math.min(...ends) : textValue.length).trim();
-}
-function hasDateEvidence(quote, source) {
-  const value = String(quote || "").trim();
-  return DATE_HINT.test(value) || DATE_HINT.test(clauseAroundQuote(source, value));
-}
 function vagueDateConfidence(confidence, quote, context) {
-  const source = String(context.text || "");
-  const value = String(quote || "").trim();
-  const vague = value ? VAGUE_PAST.test(value) : VAGUE_PAST.test(source);
-  if (!vague) return confidence;
-  if (hasDateEvidence(value, source)) return confidence;
-  return Math.min(confidence, 0.4);
+  return isVaguePastItem(quote, context.text) ? Math.min(confidence, 0.4) : confidence;
 }
 function sanitizeClarification(c, context) {
   if (!c || !CLARIFICATION_KINDS.has(c.kind)) return null;

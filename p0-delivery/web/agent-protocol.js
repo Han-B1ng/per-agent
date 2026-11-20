@@ -19,6 +19,7 @@ const CANCEL_RE = /^(不是|不是这个|不对|记错|算了|取消|不用了|�
 const VAGUE_PAST_RE = /前阵子|之前|有一次|上次|前些日子|前段时间/;
 const EXPLICIT_DATE_RE = /昨天|昨日|前天|大前天|今天|今日|上周|周[一二三四五六日天]|礼拜|\d{1,2}月\d{1,2}日|\d{4}-\d{1,2}-\d{1,2}|\d+\s*天前/;
 const NOT_DONE_RE = /还没|还没有|没交|未交|没完成|未完成|还没完成|没做|没写|没有做|尚未|不算/;
+const TARGET_DENY_RE = /不是|并非|不选|别选|不要选|选错|不对/;
 const NEGATED_DELETE_RE = /没删|还没删|不删|别删|不要删/;
 const QUESTION_RE = /[吗呢?？]|是否/;
 const TASK_COMPLETE_RE = /交了|交完|提交了|完成|做完|搞定|写完|通过|已交|已经交/;
@@ -168,8 +169,18 @@ function strongTaskSelection(text, candidate, ordinal) {
   return Boolean(id && source.includes(id)) || DEMONSTRATIVE_RE.test(String(text || ""));
 }
 
+export function clarificationItem(clarification, candidateId, today, text = "") {
+  const item = { op: clarification.intent, id: candidateId };
+  const date = resolveDate(text, today) || clarification.answerDate;
+  if (clarification.intent === "complete_task") item.doneAt = date || today;
+  if (clarification.intent === "confirm_event" && date) item.occurredAt = date;
+  if (clarification.intent === "confirm_rest" && date) item.date = date;
+  return item;
+}
+
 function resolveTaskCandidate(clarification, text, today) {
   const source = String(text || "");
+  if (TARGET_DENY_RE.test(source)) return { status: "negative", reason: "not_target" };
   if (clarification.intent === "complete_task" && NOT_DONE_RE.test(source)) {
     return { status: "negative", reason: "not_done" };
   }
@@ -201,12 +212,7 @@ function resolveTaskCandidate(clarification, text, today) {
   }
   if (!actionWords && !explicitTaskSelection(source, candidate, ordinal)) return { status: "unrelated" };
 
-  const item = { op: clarification.intent, id: candidate.id };
-  if (clarification.intent === "complete_task") {
-    const date = resolveDate(source, today);
-    item.doneAt = date && date <= today ? date : today;
-  }
-  return { status: "resolved", item, candidate };
+  return { status: "resolved", item: clarificationItem(clarification, candidate.id, today, source), candidate };
 }
 
 function resolveRecordCandidate(clarification, text, today) {
@@ -234,11 +240,7 @@ function resolveRecordCandidate(clarification, text, today) {
   if (hasAdditionalIntent(source) && !isStrong) return { status: "unrelated" };
   if (!isStrong) return { status: "unrelated" };
 
-  const item = { op: clarification.intent, id: candidate.id };
-  const date = resolveDate(source, today);
-  if (clarification.intent === "confirm_event" && date && date <= today) item.occurredAt = date;
-  if (clarification.intent === "confirm_rest" && date && date <= today) item.date = date;
-  return { status: "resolved", item, candidate };
+  return { status: "resolved", item: clarificationItem(clarification, candidate.id, today, source), candidate };
 }
 
 export function resolveClarificationReply(clarification, text, today) {
@@ -249,7 +251,7 @@ export function resolveClarificationReply(clarification, text, today) {
   return { status: "unrelated" };
 }
 
-export function normalizeClarification(clarification, { now = new Date().toISOString(), createId } = {}) {
+export function normalizeClarification(clarification, { now = new Date().toISOString(), today = now.slice(0, 10), text, createId } = {}) {
   if (!clarification || typeof clarification !== "object") return null;
   const kinds = new Set(["task_target", "record_target"]);
   if (!kinds.has(clarification.kind)) return null;
@@ -266,12 +268,14 @@ export function normalizeClarification(clarification, { now = new Date().toISOSt
     ...(candidate?.date ? { date: String(candidate.date).slice(0, 10) } : {}),
   })).filter((candidate) => candidate.id && candidate.label);
   if (!candidates.length) return null;
+  const date = resolveDate(clauseAroundQuote(text ?? clarification.sourceText, clarification.sourceText), today);
   return {
     id: String(clarification.id || (createId ? createId("clr") : "")),
     kind: clarification.kind,
     intent: clarification.intent,
     question: clarification.question.trim().slice(0, PROTOCOL_LIMITS.questionChars),
     sourceText: String(clarification.sourceText || "").trim().slice(0, PROTOCOL_LIMITS.sourceChars),
+    ...(realDate(date) && date <= today ? { answerDate: date } : {}),
     candidates,
     status: "pending",
     createdAt: clarification.createdAt || now,
@@ -312,14 +316,12 @@ export function clauseAroundQuote(text, quote) {
 }
 
 export function hasDateEvidence(quote, text) {
-  const source = String(quote || "").trim();
-  return EXPLICIT_DATE_RE.test(source) || EXPLICIT_DATE_RE.test(clauseAroundQuote(text, source));
+  return EXPLICIT_DATE_RE.test(clauseAroundQuote(text, quote) || String(quote || ""));
 }
 
-export function isVaguePastItem(quote, text, today) {
-  const source = String(quote || "").trim();
-  const vague = source ? VAGUE_PAST_RE.test(source) : (VAGUE_PAST_RE.test(String(text || "")) && resolveDate(text, today) == null);
-  return vague && !hasDateEvidence(source, text);
+export function isVaguePastItem(quote, text) {
+  const source = clauseAroundQuote(text, quote) || String(quote || "");
+  return VAGUE_PAST_RE.test(source) && !hasDateEvidence(quote, text);
 }
 
 export function isVaguePastText(text, today) {

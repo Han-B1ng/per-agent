@@ -149,6 +149,16 @@ test("function extract：单访客限流明确返回 rate_limited", async () => 
   assert.equal(last.status, 429);
   assert.equal((await last.json()).error.code, "rate_limited");
 });
+test("function Agent 协议：缩短引文也从用户对应分句识别模糊日期", async () => {
+  const payload = { reply: "已计入指数", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-16", quote: "跑过五公里", tags: [], confidence: 0.9 } }] };
+  const routes = { ...qcaRoutes, "GET /api/v1/cloud/sessions/sess1/events": { data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(payload) }] }] } };
+  const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(routes), logger: { info() {} } });
+  const response = await (await h(post({ text: "前阵子跑过五公里，今天读完一本书", context: { today: TODAY } }))).json();
+  assert.equal(response.ok, true);
+  assert.equal(response.items[0].event.quote, "跑过五公里");
+  assert.equal(response.items[0].event.confidence, 0.4);
+});
+
 test("function Agent 协议：合法澄清候选透传，越界候选整次拒绝", async () => {
   const tasks = [
     { id: "task_db", title: "数据库课设", dueAt: "2026-11-21", position: 3 },

@@ -73,6 +73,7 @@ function normalizeClarification(c) {
     status: c.status,
     createdAt: typeof c.createdAt === "string" ? c.createdAt : new Date().toISOString(),
   };
+  if (isDate(c.answerDate)) out.answerDate = c.answerDate;
   if (typeof c.resolvedAt === "string") out.resolvedAt = c.resolvedAt;
   if (c.resolution && typeof c.resolution === "object") {
     out.resolution = {
