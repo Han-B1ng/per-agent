@@ -151,3 +151,28 @@ test("本地 Deno 入口使用生成包", async () => {
   assert.match(source, /from "\.\.\/dist-functions\/handler\.mjs"/);
   assert.ok(!source.includes("../functions/"));
 });
+
+test("同名文件不在生成清单时退出并保留原文件", async () => {
+  const outer = await mkdtemp(path.join(tmpdir(), "pe-functions-conflict-"));
+  const out = path.join(outer, "app");
+  try {
+    execFileSync(process.execPath, [BUILD, "--out", out], { cwd: ROOT, stdio: "pipe" });
+    const manifestPath = path.join(out, MANIFEST);
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8"));
+    manifest.files = manifest.files.filter((file) => file !== "engine.js");
+    await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+    const before = await readFile(path.join(out, "engine.js"));
+    let error;
+    try {
+      execFileSync(process.execPath, [BUILD, "--out", out], { cwd: ROOT, stdio: "pipe" });
+    } catch (caught) {
+      error = caught;
+    }
+    assert.ok(error, "build should reject an unmanaged same-name file");
+    assert.match(String(error.stderr || error.message), /refusing to overwrite files not managed by this build: engine\.js/);
+    assert.deepEqual(await readFile(path.join(out, "engine.js")), before);
+    assert.ok((await stat(path.join(out, "handler.mjs"))).isFile(), "managed files must not be removed before the conflict check");
+  } finally {
+    await rm(outer, { recursive: true, force: true });
+  }
+});
