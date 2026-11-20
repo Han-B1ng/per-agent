@@ -242,8 +242,8 @@ test("点击与文字选择共用日期构造，支持事件、休息和目标",
   }
 });
 
-test("浏览器与 Sites Function 的协议副本保持一致", () => {
-  assert.equal(readFileSync(new URL("../web/agent-protocol.js", import.meta.url), "utf8"), readFileSync(new URL("../functions/agent-protocol.js", import.meta.url), "utf8"));
+test("浏览器与生成的 Sites Function 协议副本保持一致", () => {
+  assert.equal(readFileSync(new URL("../web/agent-protocol.js", import.meta.url), "utf8"), readFileSync(new URL("../dist-functions/agent-protocol.js", import.meta.url), "utf8"));
 });
 
 test("跨周日期解析：记录用过去时，目标到期用将来时", () => {
