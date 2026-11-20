@@ -160,8 +160,6 @@ canvas { display: block; width: 100%; height: 100%; }
 .records-tabs { display: flex; gap: 4px; margin: 0 0 14px; border-bottom: 1px solid var(--line); }
 .records-tabs button { border: 0; background: transparent; color: var(--muted); font-size: 12px; padding: 8px 14px; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .records-tabs button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--up); }
-.review-week-picker { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; }
-.review-week-picker select { border: 1px solid #ffffff1f; border-radius: 8px; background: #111216; padding: 6px 8px; color: var(--text); font-size: 11px; color-scheme: dark; }
 .page-view .review-page.review-page { width: 100%; padding-top: 6px; }
 .record-filters { display: grid; grid-template-columns: 145px 145px minmax(150px, 1fr) 130px auto; align-items: end; gap: 10px; padding: 13px; margin-bottom: 12px; }
 .record-filters .check-label { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; }
@@ -577,8 +575,6 @@ canvas { display: block; width: 100%; height: 100%; }
 .record-empty .action-btn.primary { border: 1px solid #35644b; background: #1b3527; color: #d9f0e2; }
 .link-chip { margin-bottom: 16px; }
 .service-state { margin-bottom: 16px; border-radius: 7px; }
-.review-week-picker { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
-.review-week-picker select { height: 31px; padding: 0 8px; border: 1px solid var(--line); border-radius: 6px; background: #ffffff04; color: var(--text); font: 10px var(--mono); color-scheme: dark; }
 .records-page .weekly-review { padding-top: 2px; }
 @media (max-width: 900px) {
   .record-row { grid-template-columns: minmax(0, 1fr) 84px 24px; }
@@ -632,12 +628,12 @@ body { background: var(--pe-color-surface-canvas); }
 .market-stats > div { border-color: var(--pe-color-border-metric-divider); }
 .chart-toolbar, .conversation-heading, .goal-card-foot, .done-list, .record-row, .drawer-section, .record-facts, .weekly-contrib-row { border-color: var(--pe-color-border-subtle); }
 .chart-range, .week-vol, .drawer-sub, .goal-meta, .record-quote small { color: var(--pe-color-text-muted); }
-.chart-detail-btn, .action-btn, .mini-btn, .card-btn, .quick-actions button, .pending-filter, .back-market, .review-week-picker select { background: var(--pe-color-surface-control-secondary); border-color: var(--pe-color-border-default); color: var(--pe-color-text-primary); }
+.chart-detail-btn, .action-btn, .mini-btn, .card-btn, .quick-actions button, .pending-filter, .back-market { background: var(--pe-color-surface-control-secondary); border-color: var(--pe-color-border-default); color: var(--pe-color-text-primary); }
 .chart-detail-btn:hover, .action-btn:hover, .mini-btn:hover, .card-btn:hover, .quick-actions button:hover { background: var(--pe-color-surface-raised); }
 .action-btn.primary, .goals-heading .action-btn.primary, .panel-foot .action-btn.primary, .drawer-footer .action-btn.primary, .confirm-actions .action-btn.primary, .card-btn.primary, .record-empty .action-btn.primary { background: var(--pe-color-status-positive-bg); border-color: var(--pe-color-status-positive-border); color: var(--pe-color-status-positive); }
 .action-btn.danger, .mini-btn.danger, .clear-btn { color: var(--pe-color-status-negative); border-color: var(--pe-color-status-negative-border-subtle); }
 .composer { background: var(--pe-color-surface-input); border-color: var(--pe-color-border-input-emphasis); }
-.composer textarea, .goal-form input, .goal-form select, .record-filters input, .record-filters select, .edit-form input, .edit-form textarea, .pending-editor input, .review-week-picker select { background: var(--pe-color-surface-input); border-color: var(--pe-color-border-default); color: var(--pe-color-text-primary); }
+.composer textarea, .goal-form input, .goal-form select, .record-filters input, .record-filters select, .edit-form input, .edit-form textarea, .pending-editor input { background: var(--pe-color-surface-input); border-color: var(--pe-color-border-default); color: var(--pe-color-text-primary); }
 .composer textarea::placeholder, .record-filters input::placeholder { color: var(--pe-color-text-muted); }
 .send { background: var(--pe-color-text-primary); color: var(--pe-color-text-inverse); }
 .send:disabled { background: var(--pe-color-surface-control-secondary); color: var(--pe-color-text-muted); }
@@ -679,7 +675,6 @@ body { background: var(--pe-color-surface-canvas); }
 .weekly-row:hover, .weekly-contrib-row:hover { background: var(--pe-color-surface-raised) !important; }
 .weekly-empty { background: transparent !important; border-color: var(--pe-color-border-default) !important; color: var(--pe-color-text-muted) !important; }
 .weekly-head h2 { color: var(--pe-color-text-primary); }
-.weekly-controls .review-week-picker select { background: var(--pe-color-surface-input); color: var(--pe-color-text-primary); }
 /* Scrollbar */
 .message-scroll, .drawer-body, .page-view, .composer textarea { scrollbar-color: var(--pe-color-scrollbar-thumb) transparent; }
 .pending-error, .field-error { flex-basis: 100%; margin: 2px 0 0; color: var(--pe-color-status-negative); font-size: 10px; line-height: 1.5; }

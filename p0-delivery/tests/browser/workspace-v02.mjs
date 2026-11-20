@@ -422,10 +422,25 @@ for (const [width, height] of [[1440, 900], [1440, 720]]) {
   check("PR#4 指数卡跳转周 K 明细", (await page.locator("#drawer-sub").textContent()).includes(reviewState.weekKey), await page.locator("#drawer-sub").textContent());
   await page.click("#drawer-close");
   await page.waitForTimeout(500);
-  const firstWeek = await page.evaluate(() => document.querySelector("#review-week-select option:nth-child(2)").value);
-  await page.selectOption("#review-week-select", firstWeek);
+  await page.click("#review-week-select");
+  await page.waitForTimeout(150);
+  const firstWeekOption = page.locator('#review-week-select-menu [role="option"]').nth(1);
+  const firstWeek = (await firstWeekOption.textContent()).trim().split(" ~ ")[0];
+  await firstWeekOption.click();
   await page.waitForTimeout(300);
-  check("PR#4 跨周切换复盘重算", (await page.evaluate(() => document.querySelector('[data-testid="weekly-review"]').dataset.weekKey)) === firstWeek, firstWeek);
+  check("PR#4 鼠标切周复盘重算", (await page.evaluate(() => document.querySelector('[data-testid="weekly-review"]').dataset.weekKey)) === firstWeek && (await page.locator("#review-week-select").getAttribute("aria-expanded")) === "false", firstWeek);
+  await page.focus("#review-week-select");
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(100);
+  const keyboardOpen = await page.locator("#review-week-select").getAttribute("aria-expanded");
+  await page.keyboard.press("ArrowUp");
+  const keyboardLabel = await page.evaluate(() => {
+    const trigger = document.querySelector("#review-week-select");
+    return document.querySelector(`#${trigger.getAttribute("aria-activedescendant")}`)?.textContent.trim();
+  });
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(300);
+  check("PR#4 键盘切周复盘重算", keyboardOpen === "true" && keyboardLabel === "本周" && (await page.evaluate(() => document.querySelector('[data-testid="weekly-review"]').dataset.weekKey)) === reviewState.weekKey && (await page.locator("#review-week-select").textContent()).trim() === "本周", JSON.stringify({ open: keyboardOpen, keyboardLabel, week: await page.evaluate(() => document.querySelector('[data-testid="weekly-review"]').dataset.weekKey) }));
   await page.setViewportSize({ width: 390, height: 844 });
   await page.waitForTimeout(400);
   const overflowX = await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth);
