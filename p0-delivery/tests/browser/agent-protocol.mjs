@@ -256,6 +256,105 @@ const today = localToday();
   await context.close();
 }
 
+/* G. 否定/新动作不得借助候选标题完成目标 */
+{
+  const seed = {
+    events: [], rests: [],
+    tasks: [
+      { id: "task_db", kind: "task", title: "数据库课设", dueAt: shiftDate(today, 3), position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+      { id: "task_algo", kind: "task", title: "算法课设", dueAt: shiftDate(today, 5), position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+    ],
+    chat: [],
+  };
+  const { context, page } = await newPage({ seed });
+  await ensurePersonal(page);
+  await send(page, "课设交了");
+  await send(page, "今天复习了数据库");
+  let data = await state(page);
+  check("G 新动作不会被候选标题误判为完成", data.tasks.find((task) => task.id === "task_db").status === "open" && data.events.some((event) => event.quote.includes("复习")), JSON.stringify(data.tasks.map((task) => [task.id, task.status])));
+  check("G 未回答的澄清仍保留", (await page.locator('[data-testid="clarification-card"]').count()) === 1, await page.locator('[data-testid="clarification-card"]').count());
+  await send(page, "数据库那个交了吗");
+  data = await state(page);
+  check("G 疑问句不会被当成完成确认", data.tasks.find((task) => task.id === "task_db").status === "open" && (await page.locator('[data-testid="clarification-card"]').count()) === 1, data.tasks.find((task) => task.id === "task_db").status);
+
+  const beforeReject = await quote(page);
+  await send(page, "数据库那个还没交");
+  data = await state(page);
+  check("G 否定回答不完成目标", data.tasks.find((task) => task.id === "task_db").status === "open", data.tasks.find((task) => task.id === "task_db").status);
+  check("G 否定回答给出未完成反馈", (await lastAssistant(page).innerText()).includes("还没完成") && !(await lastAssistant(page).innerText()).includes("已完成"), await lastAssistant(page).innerText());
+  check("G 否定回答不增加完成增益", Math.abs((await quote(page)) - beforeReject) < 0.02, `${beforeReject} → ${await quote(page)}`);
+  check("G 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
+/* H. Stub 模糊日期返回昨天+高置信时仍必须 pending，模型正文不能宣称已计分 */
+{
+  const { context, page } = await newPage();
+  await ensurePersonal(page);
+  await page.route("**/api/extract", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, mode: "model", reply: "跑步已计入指数。", items: [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: shiftDate(today, -1), quote: "前阵子跑过五公里", tags: [], confidence: 0.9 } }] }),
+  }));
+  const before = await quote(page);
+  await send(page, "前阵子跑过五公里");
+  const data = await state(page);
+  check("H 模糊日期用历史日也不能直接计分", Math.abs((await quote(page)) - before) < 0.02 && data.events.length === 1 && data.events[0].status === "pending", `${before} → ${await quote(page)} / ${data.events[0]?.status} / ${data.events[0]?.occurredAt}`);
+  check("H 回执与正文不矛盾", (await receipt(page).innerText()).includes("待确认 1 项") && !(await lastAssistant(page).innerText()).includes("已计入") && (await lastAssistant(page).innerText()).includes("不计分"), await lastAssistant(page).innerText());
+  check("H 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
+/* I. 歧义删除保持 delete_task，选择候选后删除而不是完成 */
+{
+  const seed = {
+    events: [], rests: [],
+    tasks: [
+      { id: "task_db", kind: "task", title: "数据库课设", dueAt: shiftDate(today, 3), position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+      { id: "task_algo", kind: "task", title: "算法课设", dueAt: shiftDate(today, 5), position: 3, status: "open", createdAt: `${today}T08:00:00.000Z`, doneAt: null, deletedAt: null },
+    ],
+    chat: [],
+  };
+  const { context, page } = await newPage({ seed });
+  await ensurePersonal(page);
+  await page.route("**/api/extract", (route) => route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify({ ok: true, mode: "model", reply: "删掉哪个课设？", items: [{ op: "delete_task", id: "task_db" }] }),
+  }));
+  const before = await quote(page);
+  await send(page, "删掉课设");
+  check("I 歧义删除生成澄清", (await page.locator('[data-testid="clarification-card"]').count()) === 1, await page.locator('[data-testid="clarification-card"]').count());
+  await page.locator('[data-candidate-id="task_db"]').click();
+  await page.waitForTimeout(500);
+  const data = await state(page);
+  const deleted = data.tasks.find((task) => task.id === "task_db");
+  check("I 选择候选执行删除而非完成", Boolean(deleted.deletedAt) && deleted.status !== "done" && data.tasks.find((task) => task.id === "task_algo").status === "open", JSON.stringify(deleted));
+  check("I 删除不产生完成增益", Math.abs((await quote(page)) - before) < 0.02, `${before} → ${await quote(page)}`);
+  check("I 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
+/* J. 多条 pending 时，带日期的新事件仍入账，不被旧记录澄清吞掉 */
+{
+  const seed = {
+    events: [
+      { id: "evt_old_a", kind: "event", eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: today, quote: "旧待确认A", tags: [], confidence: 0.4, status: "pending", createdAt: `${today}T08:00:00.000Z`, deletedAt: null },
+      { id: "evt_old_b", kind: "event", eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: today, quote: "旧待确认B", tags: [], confidence: 0.4, status: "pending", createdAt: `${today}T08:01:00.000Z`, deletedAt: null },
+    ],
+    rests: [], tasks: [],
+    chat: [{ id: "msg_old", role: "assistant", text: "两条待确认", pending: ["evt_old_a", "evt_old_b"] }],
+  };
+  const { context, page } = await newPage({ seed });
+  await ensurePersonal(page);
+  await send(page, "今天还跑了五公里");
+  const data = await state(page);
+  check("J 带日期的新事件正常入账", data.events.length === 3 && data.events.some((event) => event.quote.includes("今天还跑了五公里") && event.status === "confirmed"), JSON.stringify(data.events.map((event) => [event.quote, event.status])));
+  check("J 旧 pending 不被吞掉", data.events.filter((event) => event.status === "pending").length === 2 && (await page.locator(".msg-card .card-btn.primary").count()) === 2, await page.locator(".msg-card .card-btn.primary").count());
+  check("J 控制台无错误", page._errors.length === 0, page._errors.join("|") || "clean");
+  await context.close();
+}
+
 await browser.close();
 app.close();
 mkdirSync(path.join(ROOT, "assets"), { recursive: true });

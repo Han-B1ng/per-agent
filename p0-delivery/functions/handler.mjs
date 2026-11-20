@@ -144,7 +144,9 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
     const { agentId, environmentId } = await ensureBootstrap();
     // 每次请求独立 Session，避免跨访客共享对话历史（隐私隔离）。
     const session = await client.request("/api/v1/cloud/sessions", { method: "POST", body: { agent: agentId, environment_id: environmentId } });
-    const prompt = `上下文JSON：${JSON.stringify({ today: context.today, openTasks: context.openTasks, pendingEvents: context.pendingEvents, pendingRests: context.pendingRests, clarifications: context.clarifications, turns: context.turns })}\n用户原句：${text}\n只输出 {"reply","items"} 严格 JSON。`;
+    // 即使复用了旧 Agent，本次请求也携带完整协议，不依赖已存系统提示词。
+    const protocol = buildSystemPrompt({ ...context, text });
+    const prompt = `${protocol}\n\n【本次上下文 JSON】${JSON.stringify({ today: context.today, openTasks: context.openTasks, pendingEvents: context.pendingEvents, pendingRests: context.pendingRests, clarifications: context.clarifications, turns: context.turns })}\n用户原句：${text}\n只输出 {"reply","items"} 严格 JSON。`;
     await client.request(`/api/v1/cloud/sessions/${session.id}/events`, { method: "POST", body: { events: [{ type: "user.message", content: [{ type: "text", text: prompt }] }] } });
     const deadline = now() + EXTRACT_BUDGET_MS;
     while (now() < deadline) {

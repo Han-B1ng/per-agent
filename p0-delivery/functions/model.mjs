@@ -115,9 +115,27 @@ function clamp01(v, dflt) {
   const n = Number(v);
   return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : dflt;
 }
-function vagueDateConfidence(confidence, context, date, today) {
-  if (!VAGUE_PAST.test(String(context.text || "")) || DATE_HINT.test(String(context.text || ""))) return confidence;
-  if (date !== today) return confidence;
+function clauseAroundQuote(source, quote) {
+  const textValue = String(source || "");
+  const needle = String(quote || "").trim();
+  if (!textValue || !needle) return textValue;
+  let index = textValue.indexOf(needle);
+  if (index < 0 && needle.length >= 4) index = textValue.indexOf(needle.slice(0, 4));
+  if (index < 0) return textValue;
+  const start = Math.max(textValue.lastIndexOf("，", index - 1), textValue.lastIndexOf(",", index - 1), textValue.lastIndexOf("。", index - 1), textValue.lastIndexOf("；", index - 1), textValue.lastIndexOf(";", index - 1)) + 1;
+  const ends = ["，", ",", "。", "；", ";"].map((mark) => textValue.indexOf(mark, index + needle.length)).filter((position) => position >= 0);
+  return textValue.slice(start, ends.length ? Math.min(...ends) : textValue.length).trim();
+}
+function hasDateEvidence(quote, source) {
+  const value = String(quote || "").trim();
+  return DATE_HINT.test(value) || DATE_HINT.test(clauseAroundQuote(source, value));
+}
+function vagueDateConfidence(confidence, quote, context) {
+  const source = String(context.text || "");
+  const value = String(quote || "").trim();
+  const vague = value ? VAGUE_PAST.test(value) : VAGUE_PAST.test(source);
+  if (!vague) return confidence;
+  if (hasDateEvidence(value, source)) return confidence;
   return Math.min(confidence, 0.4);
 }
 function sanitizeClarification(c, context) {
@@ -176,11 +194,11 @@ export function sanitizeItems(items, context) {
       const eventType = e.eventType === "emotion" ? "emotion" : "behavior";
       const polarity = eventType === "emotion" ? "neutral" : ["positive", "negative", "neutral"].includes(e.polarity) ? e.polarity : "neutral";
       if (!DATE_RE.test(e.occurredAt || "")) continue;
-      out.push({ op, event: { eventType, polarity, intensity: clampInt(e.intensity, 1, 5, 2), occurredAt: e.occurredAt, quote: text(e.quote || context.text || "", 200), tags: Array.isArray(e.tags) ? e.tags.slice(0, 8).map(String) : [], confidence: vagueDateConfidence(clamp01(e.confidence, 0.5), context, e.occurredAt, today) } });
+      out.push({ op, event: { eventType, polarity, intensity: clampInt(e.intensity, 1, 5, 2), occurredAt: e.occurredAt, quote: text(e.quote || context.text || "", 200), tags: Array.isArray(e.tags) ? e.tags.slice(0, 8).map(String) : [], confidence: vagueDateConfidence(clamp01(e.confidence, 0.5), e.quote || "", context) } });
     } else if (op === "add_rest") {
       const r = raw.rest || {};
       if (!DATE_RE.test(r.date || "")) continue;
-      out.push({ op, rest: { date: r.date, quote: text(r.quote || context.text || "", 200), confidence: vagueDateConfidence(clamp01(r.confidence, 0.5), context, r.date, today) } });
+      out.push({ op, rest: { date: r.date, quote: text(r.quote || context.text || "", 200), confidence: vagueDateConfidence(clamp01(r.confidence, 0.5), r.quote || "", context) } });
     } else if (op === "add_task") {
       const task = raw.task || {};
       if (!DATE_RE.test(task.dueAt || "") || !task.title) continue;

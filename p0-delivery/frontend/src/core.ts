@@ -11,7 +11,7 @@ import type {
 } from "./types";
 
 type PlanResult = { writes: ExtractItem[]; clarifications: Array<Omit<Clarification, "id" | "status" | "createdAt" | "resolvedAt" | "resolution">>; converted: number };
-type Resolution = { status: "resolved" | "ambiguous" | "cancelled" | "unrelated" | "inactive"; item?: ExtractItem; candidate?: unknown; candidates?: unknown[] };
+type Resolution = { status: "resolved" | "ambiguous" | "cancelled" | "negative" | "unrelated" | "inactive"; reason?: string; item?: ExtractItem; candidate?: unknown; candidates?: unknown[] };
 type ClarificationInput = Omit<Clarification, "id" | "status" | "createdAt" | "resolvedAt" | "resolution">;
 type ProtocolModule = {
   planAgentItems(items: ExtractItem[], text: string, options: { today: string; openTasks: Array<{ id: string; title: string; dueAt?: string }> }): PlanResult;
@@ -23,6 +23,7 @@ type ProtocolModule = {
   validateAgentWrites(items: ExtractItem[], options: { today?: string; text?: string }): string[];
   sanitizeAgentReply(reply: string, receipt: AgentReceipt): string;
   hasAdditionalIntent(text: string): boolean;
+  isQuestionOnlyText(text: string): boolean;
 };
 const protocolApi = protocol as unknown as ProtocolModule;
 
@@ -106,6 +107,9 @@ export function sanitizeAgentReply(reply: string, receipt: AgentReceipt): string
 }
 export function hasAdditionalIntent(text: string): boolean {
   return protocolApi.hasAdditionalIntent(text);
+}
+export function isQuestionOnlyText(text: string): boolean {
+  return protocolApi.isQuestionOnlyText(text);
 }
 
 export interface ChartHandle {

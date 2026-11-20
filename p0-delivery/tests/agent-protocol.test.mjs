@@ -9,6 +9,7 @@ import {
   buildReceipt,
   guardAmbiguousTaskWrites,
   hasAdditionalIntent,
+  isQuestionOnlyText,
   matchTaskCandidates,
   normalizeClarification,
   planAgentItems,
@@ -98,6 +99,43 @@ test("澄清后续：唯一候选才解析，排序词与取消都可用", () =>
   assert.equal(unrelated.status, "unrelated");
 });
 
+test("否定、疑问与新动作不会被候选标题误判为完成", () => {
+  assert.equal(resolveClarificationReply(CLARIFICATION, "数据库那个还没交", TODAY).status, "negative");
+  assert.equal(resolveClarificationReply(CLARIFICATION, "数据库那个还没交", TODAY).reason, "not_done");
+  assert.equal(resolveClarificationReply(CLARIFICATION, "数据库那个交了吗", TODAY).status, "unrelated");
+  assert.equal(isQuestionOnlyText("数据库那个交了吗"), true);
+  assert.equal(isQuestionOnlyText("数据库那个交了吗，今天还跑了五公里"), false);
+  assert.equal(resolveClarificationReply(CLARIFICATION, "今天复习了数据库", TODAY).status, "unrelated");
+  assert.equal(resolveClarificationReply(CLARIFICATION, "数据库那个", TODAY).status, "resolved");
+});
+
+test("删除澄清保留 delete_task，不会在选择候选后计完成增益", () => {
+  const deletion = { ...CLARIFICATION, intent: "delete_task" };
+  const resolved = resolveClarificationReply(deletion, "数据库那个", TODAY);
+  assert.equal(resolved.status, "resolved");
+  assert.deepEqual(resolved.item, { op: "delete_task", id: "task_db" });
+  const guarded = guardAmbiguousTaskWrites([{ op: "delete_task", id: "task_db" }], "删掉课设", TASKS);
+  assert.equal(guarded.converted, 1);
+  const clarification = guarded.items.find((item) => item.op === "request_clarification");
+  assert.equal(clarification.clarification.intent, "delete_task");
+});
+
+test("模糊日期逐项判断：历史日也不能绕过，另一事项的今天不解锁", () => {
+  const vagueYesterday = [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-18", quote: "前阵子跑过五公里", tags: [], confidence: 0.9 } }];
+  assert.equal(planAgentItems(vagueYesterday, "前阵子跑过五公里", { today: TODAY, openTasks: [] }).writes[0].event.confidence, 0.4);
+
+  const mixed = [
+    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-19", quote: "前阵子跑过五公里", tags: [], confidence: 0.9 } },
+    { op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 2, occurredAt: "2026-11-19", quote: "今天又跑了三公里", tags: [], confidence: 0.9 } },
+  ];
+  const planned = planAgentItems(mixed, "前阵子跑过五公里，今天又跑了三公里", { today: TODAY, openTasks: [] });
+  assert.equal(planned.writes[0].event.confidence, 0.4);
+  assert.equal(planned.writes[1].event.confidence, 0.9);
+
+  const explicit = [{ op: "add_event", event: { eventType: "behavior", polarity: "positive", intensity: 3, occurredAt: "2026-11-11", quote: "上周三跑过五公里", tags: [], confidence: 0.9 } }];
+  assert.equal(planAgentItems(explicit, "上周三跑过五公里", { today: TODAY, openTasks: [] }).writes[0].event.confidence, 0.9);
+});
+
 test("模型猜同名目标时，应用守卫丢写入并转澄清；明确目标放行", () => {
   const guessed = [
     { op: "complete_task", id: "task_db", doneAt: TODAY },
@@ -142,6 +180,19 @@ test("澄清持久化结构可规范化，并校验候选仍存在", () => {
   assert.equal(normalized.status, "pending");
   assert.deepEqual(validateClarificationAgainstLedger(normalized, { openTasks: TASKS, pendingEvents: [], pendingRests: [] }), []);
   assert.match(validateClarificationAgainstLedger(normalized, { openTasks: [TASKS[0]], pendingEvents: [], pendingRests: [] })[0], /不可处理/);
+});
+
+test("多条 pending 时，带日期的新事件仍入账；纯日期才追问选哪条", () => {
+  const pending = [
+    { id: "evt_a", quote: "旧事A", occurredAt: TODAY, eventType: "behavior", polarity: "positive", intensity: 2 },
+    { id: "evt_b", quote: "旧事B", occurredAt: TODAY, eventType: "behavior", polarity: "positive", intensity: 2 },
+  ];
+  const fresh = mock.extract("今天还跑了五公里", { today: TODAY, pendingEvents: pending });
+  assert.deepEqual(fresh.items.map((item) => item.op), ["add_event"]);
+  assert.equal(fresh.items.some((item) => item.op === "request_clarification"), false);
+  const dated = mock.extract("上周三", { today: TODAY, pendingEvents: pending });
+  assert.equal(dated.items[0].op, "request_clarification");
+  assert.equal(dated.items[0].clarification.kind, "record_target");
 });
 
 test("跨周日期解析：记录用过去时，目标到期用将来时", () => {
@@ -189,4 +240,13 @@ test("应用写入前校验：未来日期、非法强度、过去到期日与�
   assert.ok(missingDueErrors.some((error) => error.includes("到期日")));
   assert.equal(sanitizeAgentReply("目标已完成，已计入指数。", { status: "empty" }), "这条还没有写入，请再确认一下要记录什么。");
   assert.equal(sanitizeAgentReply("目标已完成。", { status: "applied" }), "目标已完成。");
+  const pendingReply = sanitizeAgentReply("跑步已计入指数。这是哪天跑的？", { status: "pending", changed: 1, pending: 1, noop: 0, clarifications: 0 });
+  assert.equal(pendingReply.includes("已计入"), false);
+  assert.match(pendingReply, /不计分/);
+  assert.match(pendingReply, /哪天/);
+  const mixedReply = sanitizeAgentReply("跑步已记录，课设已完成。", { status: "pending", changed: 2, pending: 1, noop: 0, clarifications: 1 });
+  assert.equal(mixedReply.includes("跑步已记录"), false);
+  assert.equal(mixedReply.includes("课设已完成"), false);
+  assert.match(mixedReply, /待确认/);
+  assert.match(mixedReply, /待澄清/);
 });

@@ -110,6 +110,7 @@ test("function cache：按访客和完整有效上下文隔离", async () => {
 
 test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环境", async () => {
   const calls = [];
+  let eventPrompt = "";
   const fetchImpl = async (url, opts = {}) => {
     const u = new URL(url);
     const key = `${opts.method || "GET"} ${u.pathname}`;
@@ -120,7 +121,10 @@ test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环
     if (key === "GET /api/v1/cloud/agents") return json({ data: [{ id: "agent-old", name: "personal-economy-extractor", metadata: { app: "personal-economy" } }] });
     if (key === "GET /api/v1/cloud/environments") return json({ data: [{ id: "env-old", config: { type: "cloud" }, metadata: { app: "personal-economy" } }] });
     if (key === "POST /api/v1/cloud/sessions") return json({ id: "sess1" });
-    if (key === "POST /api/v1/cloud/sessions/sess1/events") return json({ id: "ev1" });
+    if (key === "POST /api/v1/cloud/sessions/sess1/events") {
+      eventPrompt = JSON.parse(opts.body).events[0].content[0].text;
+      return json({ id: "ev1" });
+    }
     if (key === "GET /api/v1/cloud/sessions/sess1/events") return json({ data: [{ type: "agent.message", content: [{ type: "text", text: JSON.stringify(qcaPayload) }] }] });
     return json({ error: "unexpected " + key }, 500);
   };
@@ -131,6 +135,11 @@ test("function bootstrap：Agent 409 冲突时复用本应用已有 Agent 与环
   assert.equal(j.mode, "model");
   assert.ok(calls.includes("GET /api/v1/cloud/agents"));
   assert.ok(!calls.includes("POST /api/v1/cloud/environments"));
+  assert.match(eventPrompt, /三种意图/);
+  assert.match(eventPrompt, /request_clarification/);
+  assert.match(eventPrompt, /clarifications/);
+  assert.match(eventPrompt, /禁止猜|不得猜|不猜/);
+  assert.match(eventPrompt, /用户原句：今天跑了五公里/);
 });
 
 test("function extract：单访客限流明确返回 rate_limited", async () => {
