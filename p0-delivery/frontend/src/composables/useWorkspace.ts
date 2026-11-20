@@ -32,8 +32,6 @@ export function useWorkspace() {
   const view = ref<DataView>("sample");
   const page = ref<Page>("market");
   const focusMode = ref(false);
-  const focusLocked = ref(false);
-  const conversationOpen = ref(false);
   const composerExtra = ref(0);
   const completionRequest = ref<{ id: string; title: string } | null>(null);
   const lastCompletedGoalId = ref("");
@@ -51,6 +49,7 @@ export function useWorkspace() {
   const generation = ref(0);
   const activeRequest = ref<number | null>(null);
   let requestSeq = 0;
+  let ledgerWrites = 0;
 
   const drawer = reactive<DrawerState>({ open: false, mode: "week", week: null, id: null, tab: "detail" });
   const filters = reactive<RecordFilters>({ from: "", to: "", keyword: "", type: "all", taskId: "", includeDeleted: false });
@@ -90,25 +89,16 @@ export function useWorkspace() {
   function commit(items: ExtractItem[]) {
     refreshToday();
     const write = applyItems(personal.value, items, { today: today.value });
+    if (write.applied && (write.changed > 0 || write.newPending.length > 0)) ledgerWrites += 1;
     persist();
     return write;
   }
   function setFocus(active: boolean) {
     focusMode.value = active;
-    focusLocked.value = !active;
-    conversationOpen.value = active;
-  }
-  function openConversation() {
-    conversationOpen.value = true;
-  }
-  function closeConversation() {
-    if (focusMode.value) setFocus(false);
-    else conversationOpen.value = false;
   }
   function focusComposer() {
     if (view.value === "sample") setView("personal");
     setPage("market");
-    conversationOpen.value = true;
     composerFocusSignal.value += 1;
   }
   function openGoalForm() {
@@ -142,13 +132,15 @@ export function useWorkspace() {
     view.value = next;
     closeDrawer();
   }
+  function syncViewAfterWrite(wasSample: boolean, writesBefore: number) {
+    if (wasSample && ledgerWrites > writesBefore) setView("personal");
+  }
   function setPage(next: Page, options: { taskId?: string } = {}) {
     page.value = next;
     recordTaskId.value = next === "records" ? options.taskId ?? "" : "";
     navOpen.value = false;
     if (next !== "market") {
       focusMode.value = false;
-      conversationOpen.value = false;
     }
     closeDrawer();
   }
@@ -185,7 +177,7 @@ export function useWorkspace() {
     activeRequest.value = null;
     completionRequest.value = null;
     lastCompletedGoalId.value = "";
-    conversationOpen.value = false;
+    focusMode.value = false;
     busy.value = false;
     typing.value = false;
     personal.value = clearPersonal();
@@ -410,22 +402,23 @@ export function useWorkspace() {
   }
   async function sendText(text: string, options: { skipUser?: boolean; useMock?: boolean } = {}) {
     if (busy.value) return;
-    focusLocked.value = false;
     refreshToday();
-    if (view.value === "sample") setView("personal");
+    const wasSample = view.value === "sample";
+    const writesBefore = ledgerWrites;
     const requestGeneration = generation.value;
     const requestId = ++requestSeq;
     activeRequest.value = requestId;
     busy.value = true;
     let context = buildContext(options.skipUser ? text : "");
     if (!options.skipUser) personal.value.chat.push({ id: genId("msg"), role: "user", text });
-    conversationOpen.value = true;
+    setFocus(true);
     const local = tryResolveClarification(text);
     if (local !== "none") {
       const continueWithModel = (local === "resolved" || local === "cancelled") && hasAdditionalIntent(text);
       if (!continueWithModel) {
         activeRequest.value = null;
         busy.value = false;
+        syncViewAfterWrite(wasSample, writesBefore);
         composerFocusSignal.value += 1;
         return;
       }
@@ -441,6 +434,7 @@ export function useWorkspace() {
     if (response.ok) applyAgentResponse(text, response);
     else recordFailure(text, response.error);
     persist();
+    syncViewAfterWrite(wasSample, writesBefore);
     composerFocusSignal.value += 1;
   }
   function retryFailed(message: ChatMessage, useMock: boolean) {
@@ -524,11 +518,11 @@ export function useWorkspace() {
   }
 
   return {
-    today, personal, sample, view, page, theme, focusMode, focusLocked, conversationOpen, composerExtra, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
+    today, personal, sample, view, page, theme, focusMode, composerExtra, completionRequest, lastCompletedGoalId, personalEmpty, busy, typing, modelState, navOpen, draft,
     clearArmed, goalFormOpen, recordTaskId, composerFocusSignal, lastExtract, lastFailed, drawer, filters,
     records, editable, result, goals, timeline, hasMessages, currentWeek, selectedGoal, selectedRecord,
     selectedTimelineRow, auditHistory, linkedTaskTitle, SAMPLE_META,
-    refreshToday, persist, commit, setTheme, setFocus, openConversation, closeConversation, focusComposer,
+    refreshToday, persist, commit, setTheme, setFocus, focusComposer,
     openGoalForm, openFirstActiveGoal, requestCompleteTask, cancelCompletion, confirmCompletion,
     clearCompletedNotice, setView, setPage, openWeek, openEntity, closeDrawer,
     openWeekForDate, clearPersonalData, resetChat, sendText, retryFailed, confirmPending, denyPending,

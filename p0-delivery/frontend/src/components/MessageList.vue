@@ -4,7 +4,7 @@ import type { Workspace } from "../composables/useWorkspace";
 import type { EventRecord, RestRecord } from "../types";
 
 const ws = inject<Workspace>("workspace")!;
-const { personal, typing, focusMode, conversationOpen, composerExtra, closeConversation, findPending, confirmPending, denyPending, retryFailed, resolveClarificationCandidate, cancelClarification } = ws;
+const { personal, typing, composerExtra, findPending, confirmPending, denyPending, retryFailed, resolveClarificationCandidate, cancelClarification } = ws;
 const scrollEl = ref<HTMLElement | null>(null);
 const stickToBottom = ref(true);
 
@@ -37,11 +37,7 @@ onMounted(scrollBottom);
 </script>
 
 <template>
-  <div class="conversation-inner" :data-open="conversationOpen" :data-focus="focusMode">
-    <header v-if="!focusMode" class="conversation-heading">
-      <h2>最近对话</h2>
-      <button type="button" @click="closeConversation">收起对话</button>
-    </header>
+  <div class="conversation-inner">
     <div class="message-scroll" ref="scrollEl" tabindex="0" aria-label="消息记录" @scroll="onScroll">
       <div class="messages" role="log" aria-live="polite" aria-relevant="additions">
         <div v-if="!personal.chat.length && !typing" class="conversation-empty">

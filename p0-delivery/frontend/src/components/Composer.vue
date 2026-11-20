@@ -3,7 +3,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 import type { Workspace } from "../composables/useWorkspace";
 
 const ws = inject<Workspace>("workspace")!;
-const { draft, busy, focusMode, conversationOpen, composerExtra, modelState, sendText, composerFocusSignal, openConversation, openGoalForm, openFirstActiveGoal } = ws;
+const { draft, busy, focusMode, composerExtra, modelState, sendText, composerFocusSignal, openGoalForm, openFirstActiveGoal } = ws;
 const entry = ref<HTMLTextAreaElement | null>(null);
 const composer = ref<HTMLFormElement | null>(null);
 const composing = ref(false);
@@ -38,7 +38,6 @@ function onKeydown(event: KeyboardEvent) {
   submit();
 }
 function focusEntry() {
-  openConversation();
   entry.value?.focus({ preventScroll: true });
 }
 function recordSomething() {
@@ -50,7 +49,6 @@ function watchDraft() {
 watch(draft, watchDraft);
 watch(composerFocusSignal, () => nextTick(() => entry.value?.focus({ preventScroll: true })));
 onMounted(() => {
-  if (conversationOpen.value) nextTick(() => entry.value?.focus({ preventScroll: true }));
   resizeObserver = new ResizeObserver(syncComposerHeight);
   if (composer.value) resizeObserver.observe(composer.value);
   nextTick(syncComposerHeight);
@@ -63,17 +61,17 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <footer class="compose-area" :class="{ 'is-expanded': conversationOpen || focusMode }">
-    <div v-if="conversationOpen || focusMode" class="quick-actions" aria-label="快捷操作">
+  <footer class="compose-area" :class="{ 'is-expanded': focusMode }">
+    <div v-if="focusMode" class="quick-actions" aria-label="快捷操作">
       <button type="button" @click="recordSomething">记录一件事</button>
       <button type="button" @click="openGoalForm">新增目标</button>
       <button type="button" @click="openFirstActiveGoal">完成目标</button>
     </div>
     <form ref="composer" class="composer" @submit.prevent="submit" @click="focusEntry">
       <label class="sr-only" for="entry">输入消息</label>
-      <textarea id="entry" ref="entry" v-model="draft" rows="1" maxlength="1500" placeholder="说说今天发生的事…" aria-describedby="compose-hint" @focus="openConversation" @input="autoGrow" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
+      <textarea id="entry" ref="entry" v-model="draft" rows="1" maxlength="1500" placeholder="说说今天发生的事…" aria-describedby="compose-hint" @input="autoGrow" @keydown="onKeydown" @compositionstart="composing = true" @compositionend="composing = false"></textarea>
       <button class="send" type="submit" aria-label="发送" :disabled="!canSend"><span aria-hidden="true">↑</span></button>
     </form>
-    <p v-show="conversationOpen || focusMode" class="compose-hint" id="compose-hint">发送时会将内容发给模型服务<span v-if="modelState !== 'model'"> · 当前为本地识别</span></p>
+    <p v-show="focusMode" class="compose-hint" id="compose-hint">发送时会将内容发给模型服务<span v-if="modelState !== 'model'"> · 当前为本地识别</span></p>
   </footer>
 </template>
