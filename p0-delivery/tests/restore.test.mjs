@@ -90,6 +90,63 @@ test("恢复：v1 备份沿用现有迁移，缺失版本按 v1 处理", (t) => 
   assert.equal(parsed.ledger.tasks[0].status, "done");
 });
 
+test("恢复：v2 备份必须包含完整字段且类型正确", (t) => {
+  const storage = useStorage();
+  t.after(storage.dispose);
+
+  const incomplete = parsePersonalBackup(JSON.stringify({ scope: "personal", records: { version: 2, chat: [] } }));
+  assert.equal(incomplete.ok, false);
+  assert.equal(incomplete.code, "invalid_file");
+  assert.match(incomplete.message, /v2 备份的 events、rests、tasks、audit 字段缺失或不是数组/);
+
+  const wrongType = parsePersonalBackup(exportPayload({ version: 2, events: {}, rests: [], tasks: [], chat: [], audit: [] }));
+  assert.equal(wrongType.ok, false);
+  assert.equal(wrongType.code, "invalid_file");
+  assert.match(wrongType.message, /events 字段缺失或不是数组/);
+
+  const noRecords = parsePersonalBackup(JSON.stringify({ scope: "personal", exportedAt: NOW }));
+  assert.equal(noRecords.ok, false);
+  assert.equal(noRecords.code, "invalid_file");
+  assert.match(noRecords.message, /records 账本对象/);
+});
+
+test("恢复：会被 normalize 丢弃的损坏记录在确认前拒绝", (t) => {
+  const storage = useStorage();
+  t.after(storage.dispose);
+  const corrupt = exportPayload({
+    version: 2,
+    events: [{}],
+    rests: [null],
+    tasks: [{ id: "task_bad", kind: "task" }],
+    chat: [{ id: "msg_bad", role: "user" }],
+    audit: [{ id: "audit_bad" }],
+  });
+  const parsed = parsePersonalBackup(corrupt);
+  assert.equal(parsed.ok, false);
+  assert.equal(parsed.code, "invalid_file");
+  for (const field of ["events", "rests", "tasks", "chat", "audit"]) {
+    assert.match(parsed.message, new RegExp(`${field} 1 条`), field);
+  }
+  assert.match(parsed.message, /无法识别/);
+  assert.match(parsed.message, /已取消恢复/);
+
+  const corruptV1 = parsePersonalBackup(JSON.stringify({ events: [{}], rests: [], tasks: [], chat: [] }));
+  assert.equal(corruptV1.ok, false);
+  assert.match(corruptV1.message, /events 1 条记录无法识别/);
+});
+
+test("恢复：合法空账本仍可恢复", (t) => {
+  const storage = useStorage();
+  t.after(storage.dispose);
+  const v2 = parsePersonalBackup(exportPayload(emptyPersonal()));
+  assert.equal(v2.ok, true);
+  assert.deepEqual(v2.ledger, emptyPersonal());
+
+  const v1 = parsePersonalBackup(JSON.stringify({ events: [], rests: [], tasks: [], chat: [] }));
+  assert.equal(v1.ok, true);
+  assert.deepEqual(v1.ledger, emptyPersonal());
+});
+
 test("恢复：非 JSON、样例备份和缺少账本字段都归为文件无效", (t) => {
   const storage = useStorage();
   t.after(storage.dispose);

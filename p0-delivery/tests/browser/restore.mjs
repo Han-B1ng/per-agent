@@ -146,14 +146,18 @@ async function restoreStorageWrites(page) {
   await closeWithVideo(context, page, "restore-main-flow.webm");
 }
 
-/* 2. 无效文件 / 版本暂不支持：明确提示且原账本不变 */
+/* 2. 无效 / 版本不支持 / 残缺或损坏的 v2：明确提示且原账本不变 */
 {
   const broken = path.join(TMP, "broken.json");
   const sample = path.join(TMP, "sample.json");
   const future = path.join(TMP, "future.json");
+  const incomplete = path.join(TMP, "incomplete-v2.json");
+  const corrupt = path.join(TMP, "corrupt-v2.json");
   writeFileSync(broken, "{ \"scope\": \"personal\", ");
   writeFileSync(sample, JSON.stringify({ scope: "sample", exportedAt: new Date().toISOString(), records: { events: [], rests: [], tasks: [] } }));
   writeFileSync(future, JSON.stringify({ scope: "personal", exportedAt: new Date().toISOString(), records: { version: 3, events: [], rests: [], tasks: [], chat: [], audit: [] } }));
+  writeFileSync(incomplete, JSON.stringify({ scope: "personal", records: { version: 2, chat: [] } }));
+  writeFileSync(corrupt, JSON.stringify({ scope: "personal", records: { version: 2, events: [{ id: "bad_event" }], rests: [], tasks: [], chat: [], audit: [] } }));
 
   const { context, page } = await newPage({ seed: seedLedger("原始记录") });
   await page.click("#view-personal");
@@ -166,6 +170,8 @@ async function restoreStorageWrites(page) {
     { file: broken, code: "invalid_file", text: "不是有效的 JSON" },
     { file: sample, code: "invalid_file", text: "不是个人账本备份" },
     { file: future, code: "unsupported_version", text: "版本暂不支持" },
+    { file: incomplete, code: "invalid_file", text: "字段缺失或不是数组" },
+    { file: corrupt, code: "invalid_file", text: "无法识别" },
   ]) {
     await page.setInputFiles("#restore-file", item.file);
     await page.waitForTimeout(250);
