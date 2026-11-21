@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "typecheck": "vue-tsc --noEmit -p frontend/tsconfig.json",
     "start": "node server/index.mjs",
-    "test": "npm run build:functions && node --test tests/engine.test.mjs tests/ledger.test.mjs tests/extractor-route.test.mjs tests/restore.test.mjs tests/api.test.mjs tests/sites-function.test.mjs tests/agent-protocol.test.mjs tests/id.test.mjs tests/functions-package.test.mjs",
+    "test": "npm run build:functions && node --experimental-strip-types --test tests/weekly-review.test.ts tests/engine.test.mjs tests/ledger.test.mjs tests/extractor-route.test.mjs tests/restore.test.mjs tests/api.test.mjs tests/sites-function.test.mjs tests/agent-protocol.test.mjs tests/id.test.mjs tests/functions-package.test.mjs",
     "test:functions": "npm run build:functions && node --test tests/functions-package.test.mjs",
     "test:install": "playwright install chromium ffmpeg",
     "test:browser": "npm run build && node tests/browser/acceptance.mjs",
@@ -25,7 +25,7 @@
     "test:sample": "node tests/browser/observe-sample.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.13"
   },
   "dependencies": {
     "vue": "^3.5.13"

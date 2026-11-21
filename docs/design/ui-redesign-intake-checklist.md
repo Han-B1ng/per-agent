@@ -28,7 +28,7 @@ npm run dev                                              # http://localhost:5173
 | 页头 | `components/PageHeader.vue`（`#page-title`、样例/我的、模型状态、`#view-toggle`） |
 | 行情 | `components/MarketView.vue` + `MarketSummary.vue` + `CandleChart.vue` + `MessageList.vue` |
 | 输入 | `components/Composer.vue`（`#entry`、`.composer`、`.send`、`.examples`；IME 保护、四行上限、草稿在 `useWorkspace.draft`） |
-| 目标 / 记录 / 复盘 | `components/GoalsView.vue`、`RecordsView.vue`（挂载 `weekly-review/src` 的 `WeeklyReviewView`） |
+| 目标 / 记录 / 复盘 | `components/GoalsView.vue`、`RecordsView.vue`（挂载 `components/WeeklyReviewPanel.vue`） |
 | 抽屉 / 设置 | `components/DetailDrawer.vue`（周明细 / 持仓 / 目标 / 记录 / 设置导出与清空） |
 | 状态与写入协调 | `frontend/src/composables/useWorkspace.ts` |
 
@@ -38,7 +38,7 @@ npm run dev                                              # http://localhost:5173
 - `web/engine.js`：`computeAll(records,{today,startDate})` → `days/weeks/lines/raw/adjustment/actual`；D18–D40 口径（情绪 0 分、±6% 涨跌停、同日 8 条、停牌 7 天、沉默衰减、D39 完成日、D40 pending 隔离）；`weekStartOf/shiftDate`。
 - `web/chart.js`：`createChart(canvas,{onSelect})` → `render/redraw/destroy`；DPR 适配、ResizeObserver、命中测试；单根周 K 提示由宿主渲染。
 - `web/store.js`：v2 读写 + v1 迁移 + 实体运行时校验 + `getClientId`。
-- `weekly-review/src/review.ts`：`deriveWeeklyReview/listReviewWeeks`，只读引擎输出，不另存数据。
+- `frontend/src/features/weekly-review/review.ts`：`deriveWeeklyReview/listReviewWeeks`，只读引擎输出，不另存数据。
 - `useWorkspace.ts`：请求代次作废（清空后旧响应不写回）、跨午夜刷新、focus 锁定、抽屉状态、筛选、导出/清空范围。
 
 ## 4. 必须保留的用户数据
@@ -57,9 +57,9 @@ npm run dev                                              # http://localhost:5173
 
 ## 6. 回归基线与 DOM 契约
 
-命令：`npm run build && npm test && npm run test:browser && npm run test:v02 && npm run test:visual && npm run test:sample`；周复盘 `weekly-review/ npm run test:all`。基线计数：50 / 52 / 58 / 22 / 18 / 11+23。
+命令：`npm run build && npm test && npm run test:browser && npm run test:v02 && npm run test:visual && npm run test:sample`。周复盘派生由 `npm test` 覆盖，联动由 `test:v02` 覆盖。
 
-新 UI 需保留或同步更新 harness 依赖的选择器：`#entry/.composer/.send/.examples`、`#view-toggle`、`#quote-value/#quote-change/#stat-open/#stat-high/#stat-low/#data-tag`、`#candles/.market/.conversation/.message-scroll/.messages/.message/.msg-card`、`#view-sample/#view-personal/#model-status`、`[data-page-target]`、`#drawer/#drawer-body/#drawer-title/#drawer-sub/#tab-detail/#tab-tasks/.week-ohlc/.day-block/.line-row`、`#goals-page/#active-goals/#done-goals/#goal-form/#goal-title-input/#goal-due-input/#goal-position`、`#records-page/#records-tab-list/#records-tab-week/#review-week-select/#filter-from/#filter-to/#record-keyword/#record-type/#record-include-deleted/#record-list/.record-row/.pending-editor`、周复盘 `data-testid="weekly-review|completed-row|ongoing-row|contribution-list|contribution-completion|week-open|index-card"`。对应 harness：`tests/browser/acceptance.mjs`、`workspace-v02.mjs`、`vue-market-visual.mjs`、`weekly-review/tests/preview.mjs`。
+新 UI 需保留或同步更新 harness 依赖的选择器：`#entry/.composer/.send/.examples`、`#view-toggle`、`#quote-value/#quote-change/#stat-open/#stat-high/#stat-low/#data-tag`、`#candles/.market/.conversation/.message-scroll/.messages/.message/.msg-card`、`#view-sample/#view-personal/#model-status`、`[data-page-target]`、`#drawer/#drawer-body/#drawer-title/#drawer-sub/#tab-detail/#tab-tasks/.week-ohlc/.day-block/.line-row`、`#goals-page/#active-goals/#done-goals/#goal-form/#goal-title-input/#goal-due-input/#goal-position`、`#records-page/#records-tab-list/#records-tab-week/#review-week-select/#filter-from/#filter-to/#record-keyword/#record-type/#record-include-deleted/#record-list/.record-row/.pending-editor`、周复盘 `data-testid="weekly-review|completed-row|ongoing-row|contribution-list|contribution-completion|week-open|index-card"`。对应 harness：`tests/browser/acceptance.mjs`、`workspace-v02.mjs`、`vue-market-visual.mjs`。
 
 ## 7. 等待项
 

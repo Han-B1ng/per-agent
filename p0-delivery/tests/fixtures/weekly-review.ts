@@ -1,13 +1,11 @@
-import { shiftDate, weekStartOf } from "./core";
-import type { ReviewLedger } from "./types";
+import { shiftDate, weekStartOf } from "../../web/engine.js";
+import type { SampleLedger } from "../../frontend/src/types.ts";
 
-export type PreviewScene = "data" | "empty";
-
-export function emptyLedger(): ReviewLedger {
+export function emptyLedger(): SampleLedger {
   return { events: [], rests: [], tasks: [] };
 }
 
-export function buildReviewFixture(today: string): ReviewLedger {
+export function buildReviewFixture(today: string): SampleLedger {
   const weekStart = weekStartOf(today);
   const previousWeek = shiftDate(weekStart, -7);
   return {
@@ -128,8 +126,4 @@ export function buildReviewFixture(today: string): ReviewLedger {
       },
     ],
   };
-}
-
-export function recordsForScene(scene: PreviewScene, today: string): ReviewLedger {
-  return scene === "empty" ? emptyLedger() : buildReviewFixture(today);
 }

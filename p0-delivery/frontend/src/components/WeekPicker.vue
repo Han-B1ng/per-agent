@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from "vue";
-import type { ReviewWeekOption } from "../../../weekly-review/src";
+import type { ReviewWeekOption } from "../features/weekly-review/review";
 
 const props = withDefaults(defineProps<{
   modelValue: string;
