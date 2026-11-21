@@ -14,7 +14,7 @@
 
 ## 快速开始
 
-需要 Node.js 22（建议 22.13 或以上）和 npm。
+需要 Node.js 22.13 或以上及 npm。
 
 ```sh
 git clone https://github.com/Han-B1ng/per-agent.git
@@ -44,7 +44,7 @@ npm start
 | --- | --- |
 | [`p0-delivery/frontend/`](p0-delivery/frontend/) | 页面、组件、样式与应用状态（`useLedger` / `useChat` / `useNavigation` 组装） |
 | [`p0-delivery/web/`](p0-delivery/web/) | 账本、存储迁移、计分引擎、图表绘制与 Agent 协议工具 |
-| [`p0-delivery/weekly-review/`](p0-delivery/weekly-review/) | 周复盘的数据派生和展示 |
+| [`frontend/src/features/weekly-review/`](p0-delivery/frontend/src/features/weekly-review/) | 周复盘的数据派生和展示 |
 | [`p0-delivery/server/`](p0-delivery/server/) | 本地静态服务、Mock、模型代理与协议校验 |
 | [`p0-delivery/functions/`](p0-delivery/functions/) | Qoder Sites Function 源码；构建时与 `web/` 共享 core 组装成自包含包 |
 | [`p0-delivery/scripts/`](p0-delivery/scripts/) | 构建与打包脚本（含 Function 包生成） |
@@ -87,7 +87,7 @@ npm run test:install
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |
 | `npm run test:sample` | 与现有桌面交互样板的对照 |
 
-周复盘另有独立测试。进入 `p0-delivery/weekly-review/`，执行 `npm ci` 和 `npm run test:all`。真实模型调用需在目标部署环境中单独验证。
+周复盘的数据派生由 `npm test` 验证，页面切周和详情联动由 `npm run test:v02` 验证。真实模型调用需在目标部署环境中单独验证。
 
 ## 项目文档
 

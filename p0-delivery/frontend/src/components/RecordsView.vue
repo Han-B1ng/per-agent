@@ -3,7 +3,7 @@ import { computed, inject, reactive, ref } from "vue";
 import type { Workspace } from "../composables/useWorkspace";
 import type { TimelineRow } from "../types";
 import { weekStartOf } from "../core";
-import { deriveWeeklyReview, listReviewWeeks } from "../../../weekly-review/src/index";
+import { deriveWeeklyReview, listReviewWeeks } from "../features/weekly-review/review";
 import WeeklyReviewPanel from "./WeeklyReviewPanel.vue";
 import WeekPicker from "./WeekPicker.vue";
 

@@ -1,7 +1,8 @@
 // 本周复盘派生：只读账本 + 引擎输出，不持久化、不重新计分。
 // 周边界、周开盘/收盘、完成增益与待确认隔离全部以 computeAll 的 weeks/days 为准。
-import { getGoals, parseDate, shiftDate, weekStartOf } from "./core";
-import type { ComputeResult, EngineLine, ReviewLedger, WeekResult } from "./types";
+import { parseDate, shiftDate, weekStartOf } from "../../../../web/engine.js";
+import { getGoals } from "../../../../web/ledger.js";
+import type { ComputeResult, EngineLine, LedgerRecords, WeekResult } from "../../types";
 
 export type ContributionStatus = "counted" | "pending" | "zero" | "capped";
 export type OngoingStatus = "open" | "overdue" | "paused";
@@ -158,7 +159,7 @@ export function listReviewWeeks(result: ComputeResult): ReviewWeekOption[] {
 }
 
 export function deriveWeeklyReview(
-  records: ReviewLedger,
+  records: LedgerRecords,
   result: ComputeResult,
   options: { weekStart?: string } = {},
 ): WeeklyReview {

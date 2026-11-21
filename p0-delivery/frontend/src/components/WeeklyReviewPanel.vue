@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from "vue";
-import type { WeeklyReview } from "../../../weekly-review/src/review";
-import { formatPct, formatShortDate, formatWeekRange } from "../../../weekly-review/src/index";
+import { formatPct } from "../features/weekly-review/format";
+import { formatShortDate, formatWeekRange, type WeeklyReview } from "../features/weekly-review/review";
 
 const props = defineProps<{ review: WeeklyReview }>();
 const emit = defineEmits<{
