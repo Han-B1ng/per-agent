@@ -1,6 +1,8 @@
 // 前端抽取客户端：只调服务端代理，绝不接触密钥。失败归一化，绝不把失败输入记为已录入。
-// 路由自适应：本地 Node 服务用 /api；Qoder Sites 网关 Function 用 /functions/v1/app/api。
-const BASE = location.hostname.endsWith(".qoder.zone") ? "/functions/v1/app" : "";
+// 路由自适应：本地 Node 服务用 /api；Qoder Sites 网关 Function（.qoder.zone / .qoder.website）用 /functions/v1/app/api。
+const QODER_SITE_HOST = /\.qoder\.(zone|website)$/;
+const BASE = typeof location !== "undefined" && QODER_SITE_HOST.test(location.hostname) ? "/functions/v1/app" : "";
+export { QODER_SITE_HOST };
 const CLIENT_TIMEOUT = 25000;
 
 async function readJson(res) {

@@ -10,6 +10,7 @@ import { pathToFileURL } from "node:url";
 const ROOT = path.resolve(import.meta.dirname, "..");
 const BUILD = path.join(ROOT, "scripts", "build-functions.mjs");
 const SHARED = ["agent-protocol.js", "date.js", "engine.js"];
+const CORE = ["model.mjs", "prompt.mjs", "mock.mjs"];
 const MANIFEST = ".pe-functions-package.json";
 const TODAY = "2026-11-20";
 
@@ -51,6 +52,12 @@ test("独立临时目录：生成 Function 包自包含，index.ts 与依赖可�
     }
     for (const file of SHARED) {
       assert.deepEqual(await readFile(path.join(out, file)), await readFile(path.join(ROOT, "web", file)), `${file} must come from web/`);
+      await assert.rejects(access(path.join(ROOT, "functions", file)), `${file} must not be duplicated in functions/`);
+    }
+    for (const file of CORE) {
+      const source = await readFile(path.join(ROOT, "server", file), "utf8");
+      const generated = await readFile(path.join(out, file), "utf8");
+      assert.equal(generated, source.replace(/(\bfrom\s+["'])\.\.\/web\//g, "$1./"), `${file} must be generated from server/`);
       await assert.rejects(access(path.join(ROOT, "functions", file)), `${file} must not be duplicated in functions/`);
     }
     for (const file of names) {

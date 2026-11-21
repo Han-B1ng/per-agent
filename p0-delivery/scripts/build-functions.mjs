@@ -4,17 +4,27 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE_DIR = path.join(ROOT, "functions");
+const CORE_DIR = path.join(ROOT, "server");
 const SHARED_DIR = path.join(ROOT, "web");
 const DEFAULT_OUT = path.join(ROOT, "dist-functions");
-const PACKAGE_FILES = ["index.ts", "handler.mjs", "cloud-agents.mjs", "model.mjs", "prompt.mjs", "mock.mjs"];
+const PACKAGE_FILES = ["index.ts", "handler.mjs", "cloud-agents.mjs"];
+const CORE_FILES = ["model.mjs", "prompt.mjs", "mock.mjs"];
 const SHARED_FILES = ["agent-protocol.js", "date.js", "engine.js"];
-const GENERATED_FILES = [...PACKAGE_FILES, ...SHARED_FILES];
+const GENERATED_FILES = [...PACKAGE_FILES, ...CORE_FILES, ...SHARED_FILES];
 const GENERATED_SET = new Set(GENERATED_FILES);
 const MANIFEST = ".pe-functions-package.json";
 const outIndex = process.argv.indexOf("--out");
 const OUT_DIR = path.resolve(outIndex >= 0 ? process.argv[outIndex + 1] : DEFAULT_OUT);
 
 if (!OUT_DIR || OUT_DIR === path.parse(OUT_DIR).root) throw new Error("refusing to build the function package into the filesystem root");
+
+// 抽取核心只有一份源码（server/）；生成包内把它对 web/ 的导入改成同目录导入。
+function adaptCore(text, file) {
+  return text.replace(/(\bfrom\s+["'])\.\.\/web\/([^"']+)(["'])/g, (whole, before, name, after) => {
+    if (!SHARED_FILES.includes(name)) throw new Error(`${file}: unsupported shared import: ../web/${name}`);
+    return `${before}./${name}${after}`;
+  });
+}
 
 function relativeImports(text) {
   const specs = new Set();
@@ -42,8 +52,10 @@ async function manifestFiles() {
     return null;
   }
 }
-async function sourceFor(file) {
-  return path.join(PACKAGE_FILES.includes(file) ? SOURCE_DIR : SHARED_DIR, file);
+async function expectedContent(file) {
+  if (SHARED_FILES.includes(file)) return readFile(path.join(SHARED_DIR, file));
+  if (CORE_FILES.includes(file)) return Buffer.from(adaptCore(await readFile(path.join(CORE_DIR, file), "utf8"), file));
+  return readFile(path.join(SOURCE_DIR, file));
 }
 async function inspectOutput() {
   if (!(await exists(OUT_DIR))) return { remove: [] };
@@ -70,7 +82,7 @@ async function inspectOutput() {
       let generated = false;
       try {
         const target = path.join(OUT_DIR, entry);
-        generated = (await stat(target)).isFile() && (await readFile(target)).equals(await readFile(await sourceFor(entry)));
+        generated = (await stat(target)).isFile() && (await readFile(target)).equals(await expectedContent(entry));
       } catch {
         generated = false;
       }
@@ -97,6 +109,9 @@ await prepareOutput();
 for (const file of PACKAGE_FILES) {
   await copyFile(path.join(SOURCE_DIR, file), path.join(OUT_DIR, file));
 }
+for (const file of CORE_FILES) {
+  await writeFile(path.join(OUT_DIR, file), adaptCore(await readFile(path.join(CORE_DIR, file), "utf8"), file));
+}
 for (const file of SHARED_FILES) {
   await copyFile(path.join(SHARED_DIR, file), path.join(OUT_DIR, file));
 }
@@ -112,15 +127,15 @@ for (const file of files) {
     await stat(target);
   }
 }
-for (const file of SHARED_FILES) {
-  const [source, generated] = await Promise.all([
-    readFile(path.join(SHARED_DIR, file)),
-    readFile(path.join(OUT_DIR, file)),
-  ]);
-  if (!source.equals(generated)) throw new Error(`${file}: generated copy differs from web/ source`);
+for (const file of [...CORE_FILES, ...SHARED_FILES]) {
+  const generated = await readFile(path.join(OUT_DIR, file));
+  if (!generated.equals(await expectedContent(file))) {
+    throw new Error(`${file}: generated copy differs from ${CORE_FILES.includes(file) ? "server/" : "web/"} source`);
+  }
 }
 await writeFile(path.join(OUT_DIR, MANIFEST), `${JSON.stringify({ generator: "scripts/build-functions.mjs", files: GENERATED_FILES }, null, 2)}\n`);
 
 console.log(`function package ready: ${OUT_DIR}`);
-console.log(`  source: ${SOURCE_DIR}`);
+console.log(`  sites-specific from functions/: ${PACKAGE_FILES.join(", ")}`);
+console.log(`  extraction core from server/: ${CORE_FILES.join(", ")}`);
 console.log(`  shared core from web/: ${SHARED_FILES.join(", ")}`);
