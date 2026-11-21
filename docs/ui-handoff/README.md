@@ -8,17 +8,10 @@
 cd p0-delivery
 npm ci
 npm run build
-npm run test:ui      # 三态、主题、页面与核心流程；生成本目录截图/录屏/acceptance.json
+npm run test:ui      # 三态、主题、页面与核心流程；生成截图/录屏/acceptance.json（本地，不入库）
 ```
 
-- 三态：`screenshots/01-market.png`、`24-input-focus.png`、`02-conversation-focus.png`
-- 页面与抽屉：`03-goals.png`、`04-goal-detail.png`、`05-records.png`、`06-weekly-review.png`、`08-goal-create.png`、`09-record-pending.png`、`10-record-detail.png`、`11-settings.png`
-- 完成闭环：`12-goal-complete-confirm.png`、`13-goal-completed.png`
-- 空态：`20-market-personal-empty.png`、`21-records-empty.png`、`22-records-no-results.png`
-- 连续录屏：`videos/core-flow-1440x900.webm`（个人行情 → 点击输入框 → 发送进入专注 → 记录行为 → 待确认抽屉 → 确认 → 新建目标 → 完成确认 → 成功态 → 成长记录 → 本周复盘 → 周 K 明细 → 设置）
-- 顺序录屏（交付，已裁去开头准备段）：`videos/market-focus-sequence-1440x900.webm`（点击输入框 → 发送 → 直接进入专注 → 返回行情）
-- 顺序录屏原始完整版：`videos/market-focus-sequence-raw-1440x900.webm`
-- 原始断言：`acceptance.json`
+`npm run test:ui` 会在本目录生成本地验收截图、录屏和 `acceptance.json`。这些文件已由 `.gitignore` 忽略，不进入版本库；历史验收证据保留在对应 PR 的提交和讨论中，`main` 不存放验收媒体。
 
 ## 2026-11-21 增补：本机数据 JSON 恢复
 
