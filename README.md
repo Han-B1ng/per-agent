@@ -83,7 +83,7 @@ npm run test:install
 | `npm run test:agent` | 三意图、澄清候选、逐项日期、回执与 Sites 复用协议 |
 | `npm run test:restore` | 设置页 JSON 恢复：导出后恢复、无效文件与版本、写入失败与重试 |
 | `npm run test:functions` | 独立临时目录加载生成的 Function 包，stub QCA，校验依赖闭环 |
-| `npm run test:ui` | 行情两态、目标/记录/设置画板与核心流程；输出 `docs/ui-handoff/` 证据 |
+| `npm run test:ui` | 行情两态、目标/记录/设置画板与核心流程；输出 `docs/ui-handoff/` 本地证据（已忽略，不入库） |
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |
 | `npm run test:sample` | 与现有桌面交互样板的对照 |
 

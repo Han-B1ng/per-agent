@@ -26,3 +26,8 @@ playwright-report/
 /p0-delivery/assets/
 /p0-delivery/weekly-review/assets/
 dist-functions/
+
+# 本地 UI 验收媒体与生成报告（不入库）
+/docs/ui-handoff/screenshots/
+/docs/ui-handoff/videos/
+/docs/ui-handoff/acceptance.json
