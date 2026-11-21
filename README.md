@@ -87,7 +87,7 @@ npm run test:install
 | `npm run test:visual` | 行情布局、不同视口和对话动效 |
 | `npm run test:sample` | 与现有桌面交互样板的对照 |
 
-周复盘的数据派生由 `npm test` 验证，页面切周和详情联动由 `npm run test:v02` 验证。真实模型调用需在目标部署环境中单独验证。
+周复盘的数据派生由 `npm test` 验证，页面切周和详情联动由 `npm run test:v02` 验证。验收截图、录屏、个人复盘、个人账本导出及临时测试输出保存在本机；共享验收证据放在对应 PR。真实模型调用需在目标部署环境中单独验证。
 
 ## 项目文档
 
@@ -95,5 +95,4 @@ npm run test:install
 - [事件、目标与指数算法](docs/design/agent-engine-spec-v0.1.md)
 - [产品与算法决策记录](docs/decisions/decision-log.md)
 - [Agent 交流协议与示例](docs/design/agent-communication-protocol-v0.1.md)
-- [桌面 UI 实现与验收证据](docs/ui-handoff/README.md)
 - [贡献与协作约定](AGENTS.md)
