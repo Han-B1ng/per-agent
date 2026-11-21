@@ -13,6 +13,7 @@ export function createChart(canvas, { onSelect } = {}) {
   let hover = -1;
   let geom = null;
   let mode = "full";
+  let highlightLast = true;
 
   function niceTicks(min, max, count = 5) {
     const span = max - min || 1;
@@ -43,6 +44,7 @@ export function createChart(canvas, { onSelect } = {}) {
     const hoverColor = cssVar(canvas, "--pe-color-surface-selected", HOVER);
     const guide = cssVar(canvas, "--pe-color-chart-guide", "#8dd8ad66");
     const marker = cssVar(canvas, "--pe-color-chart-marker", "#8dd8ad");
+    const historySelection = cssVar(canvas, "--pe-color-chart-history-selection", "#58606d");
     const inverse = cssVar(canvas, "--pe-color-text-inverse", "#0b0c0e");
     const primaryText = cssVar(canvas, "--pe-color-text-primary", "#e4e6eb");
     const left = bare ? 2 : 7;
@@ -69,11 +71,11 @@ export function createChart(canvas, { onSelect } = {}) {
         ctx.fillStyle = labelColor;
         ctx.fillText(Math.round(v).toLocaleString("en-US"), right + 10, ly);
       }
-      // 当前周高亮
+      // 当前周高亮；浏览历史窗口时不把窗口末周误标为当前周
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.fillStyle = highlight;
-      ctx.fillRect(left + (weeks.length - 1) * step, top, step, bottom - top);
+      if (highlightLast && weeks.length) ctx.fillRect(left + (weeks.length - 1) * step, top, step, bottom - top);
       if (hover >= 0 && hover < weeks.length) {
         ctx.fillStyle = hoverColor;
         ctx.fillRect(left + hover * step, top, step, bottom - top);
@@ -114,7 +116,7 @@ export function createChart(canvas, { onSelect } = {}) {
       if (hover >= 0 && hover < weeks.length) {
         const w = weeks[hover];
         const x = left + (hover + 0.5) * step;
-        ctx.strokeStyle = "#ffffff2b";
+        ctx.strokeStyle = historySelection;
         ctx.setLineDash([3, 3]);
         ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bottom); ctx.stroke();
         ctx.setLineDash([]);
@@ -174,6 +176,7 @@ export function createChart(canvas, { onSelect } = {}) {
   return {
     render(nextWeeks) { weeks = nextWeeks; hover = -1; redraw(); },
     setMode(nextMode) { mode = nextMode === "bare" ? "bare" : "full"; redraw(); },
+    setHighlightLast(next) { highlightLast = next !== false; redraw(); },
     redraw,
     destroy() {
       observer.disconnect();

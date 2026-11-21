@@ -4,6 +4,7 @@ export interface ChartHandle {
   render(weeks: WeekResult[]): void;
   redraw(): void;
   setMode(mode: "full" | "bare"): void;
+  setHighlightLast(highlight: boolean): void;
   destroy(): void;
 }
 
