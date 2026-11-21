@@ -21,6 +21,7 @@
     "test:restore": "npm run build && node tests/browser/restore.mjs",
     "test:ui": "npm run build && node tests/browser/ui-handoff.mjs",
     "test:visual": "npm run build && node tests/browser/vue-market-visual.mjs",
+    "test:chart": "npm run build && node tests/browser/market-chart-window.mjs",
     "test:sample": "node tests/browser/observe-sample.mjs"
   },
   "engines": {
