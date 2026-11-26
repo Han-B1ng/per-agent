@@ -245,10 +245,17 @@ test("静态防护：真实路径越出根目录（含符号链接）404，正�
   s.close();
 });
 
-test("非法 JSON 400；超长 text 400；confirm 未知 id 整次拒绝", async () => {
+test("非法 JSON 400；非对象 JSON 400；超长 text 400；confirm 未知 id 整次拒绝", async () => {
   const s = await listen(createApp({ env: {}, staticRoot: fixture() }));
   const bad = await fetch(base(s) + "/api/extract", { method: "POST", body: "{not json" });
   assert.equal(bad.status, 400);
+  for (const rawBody of ["null", "[]", "\"hello\"", "123"]) {
+    const nonObj = await fetch(base(s) + "/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: rawBody });
+    assert.equal(nonObj.status, 400, `body=${rawBody} 应返回 400`);
+    const nonObjJson = await nonObj.json();
+    assert.equal(nonObjJson.ok, false);
+    assert.equal(nonObjJson.error.code, "invalid_request");
+  }
   const long = await post(base(s), { text: "x".repeat(1501), context: ctx() });
   assert.equal(long.status, 400);
   const up = await listen(okUpstream({ reply: "r", items: [{ op: "confirm_event", id: "unknown" }] }));

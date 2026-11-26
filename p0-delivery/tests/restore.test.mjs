@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { emptyPersonal, parsePersonalBackup, savePersonal } from "../web/store.js";
+import { emptyPersonal, loadPersonalState, parsePersonalBackup, savePersonal } from "../web/store.js";
 
 const TODAY = "2026-11-20";
 const NOW = "2026-11-20T08:00:00.000Z";
@@ -199,4 +199,49 @@ test("恢复：浏览器写入失败返回 false 且保留原存储", (t) => {
   assert.equal(savePersonal(next), true);
   const stored = JSON.parse(storage.values.get("pe.personal.v2"));
   assert.equal(stored.events[0].quote, "待恢复记录");
+});
+
+test("本地存储损坏：JSON 解析失败或为 null/数组时备份原始内容且不被后续保存覆盖", (t) => {
+  const storage = useStorage();
+  t.after(storage.dispose);
+
+  const corruptRaw = "{broken-json";
+  storage.values.set("pe.personal.v2", corruptRaw);
+  const first = loadPersonalState();
+  assert.equal(first.corrupted, true);
+  assert.equal(first.sourceKey, "pe.personal.v2");
+  assert.equal(first.backupSaved, true);
+  assert.equal(first.backupKey, "pe.personal.corrupt.backup");
+  assert.deepEqual(first.ledger, emptyPersonal());
+  assert.equal(storage.values.get(first.backupKey), corruptRaw);
+
+  // 重复读取同一损坏数据时复用同一备份键，不无限膨胀
+  const repeat = loadPersonalState();
+  assert.equal(repeat.backupKey, "pe.personal.corrupt.backup");
+  assert.equal([...storage.values.keys()].filter((k) => k.startsWith("pe.personal.corrupt.")).length, 1);
+
+  // 下一次保存会写入新账本，但备份键里的原始损坏数据保持完整
+  const fresh = emptyPersonal();
+  fresh.events.push(event({ id: "evt_after_corrupt", quote: "新记录" }));
+  assert.equal(savePersonal(fresh), true);
+  assert.equal(storage.values.get("pe.personal.corrupt.backup"), corruptRaw);
+
+  // 内容为 null 或数组同样视为损坏，并保留先前的备份键不覆盖
+  storage.values.set("pe.personal.v2", "null");
+  const nullState = loadPersonalState();
+  assert.equal(nullState.corrupted, true);
+  assert.equal(nullState.backupSaved, true);
+  assert.notEqual(nullState.backupKey, "pe.personal.corrupt.backup");
+  assert.equal(storage.values.get(nullState.backupKey), "null");
+  assert.equal(storage.values.get("pe.personal.corrupt.backup"), corruptRaw);
+
+  // v1 损坏且写入备份失败时仍明确返回 corrupted + backupSaved=false
+  storage.values.delete("pe.personal.v2");
+  storage.values.set("pe.personal.v1", "[]");
+  storage.state.failWrite = true;
+  const legacyBad = loadPersonalState();
+  assert.equal(legacyBad.corrupted, true);
+  assert.equal(legacyBad.sourceKey, "pe.personal.v1");
+  assert.equal(legacyBad.backupSaved, false);
+  assert.equal(legacyBad.backupKey, null);
 });

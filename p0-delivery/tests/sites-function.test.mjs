@@ -73,6 +73,13 @@ test("function extract：QCA 超时→timeout 不录入；非法 body 400；未�
   const h = createHandler({ getToken: () => "fixture", fetchImpl: stubFetch(qcaRoutes) });
   r = await h(req("/api/extract", { method: "POST", body: "{bad" }));
   assert.equal(r.status, 400);
+  for (const rawBody of ["null", "[]", "\"hello\"", "123"]) {
+    const nonObj = await h(req("/api/extract", { method: "POST", headers: { "Content-Type": "application/json" }, body: rawBody }));
+    assert.equal(nonObj.status, 400, `body=${rawBody} 应返回 400`);
+    const nonObjJson = await nonObj.json();
+    assert.equal(nonObjJson.ok, false);
+    assert.equal(nonObjJson.error.code, "invalid_request");
+  }
   r = await h(req("/api/nope"));
   assert.equal(r.status, 404);
 });

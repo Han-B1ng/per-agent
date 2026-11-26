@@ -1,12 +1,20 @@
 import { computed, reactive, ref } from "vue";
 import {
-  applyItems, buildSampleRecords, clearPersonal, computeAll, getGoals, getTimeline, loadPersonal, parsePersonalBackup, savePersonal, shiftDate, SAMPLE_META,
+  applyItems, buildSampleRecords, clearPersonal, computeAll, getGoals, getTimeline, loadPersonalState, parsePersonalBackup, savePersonal, shiftDate, SAMPLE_META,
 } from "../core";
 import type {
-  BackupParseResult, CommitResult, DataView, ExtractItem, GoalView, LedgerRecords, PersonalLedger, RecordFilters, RestoreResult, TimelineRow,
+  BackupParseResult, CommitResult, DataView, ExtractItem, GoalView, LedgerRecords, PersonalLedger, PersonalLoadState, RecordFilters, RestoreResult, TimelineRow,
 } from "../types";
 
 const NOT_SAVED_MESSAGE = "未保存：浏览器写入失败，本次改动没有写入本机。请重试。";
+
+function corruptStorageMessage(state: PersonalLoadState): string {
+  if (!state.corrupted) return "";
+  if (state.backupSaved && state.backupKey) {
+    return `本地账本数据已损坏，已将原始内容备份到浏览器存储键 ${state.backupKey}，当前以空账本启动。`;
+  }
+  return "本地账本数据已损坏，且无法写入备份键，当前以空账本启动。请先备份当前浏览器数据再继续写入。";
+}
 
 function localToday(): string {
   const d = new Date();
@@ -16,11 +24,12 @@ function localToday(): string {
 export function useLedger() {
   const today = ref(localToday());
   const sample = ref(buildSampleRecords(today.value));
-  const personal = ref<PersonalLedger>(loadPersonal());
+  const initialLoad = loadPersonalState();
+  const personal = ref<PersonalLedger>(initialLoad.ledger);
   const view = ref<DataView>("sample");
   const filters = reactive<RecordFilters>({ from: "", to: "", keyword: "", type: "all", taskId: "", includeDeleted: false });
   const recordTaskId = ref("");
-  const persistError = ref("");
+  const persistError = ref(corruptStorageMessage(initialLoad));
   let ledgerWrites = 0;
 
   const records = computed<LedgerRecords>(() => (view.value === "sample" ? sample.value : personal.value));

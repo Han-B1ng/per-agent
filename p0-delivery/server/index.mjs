@@ -106,6 +106,9 @@ export function createApp({ env = {}, staticRoot = path.join(REPO, "dist"), cach
     }
     let body;
     try { body = JSON.parse(raw); } catch { return sendJson(res, 400, { ok: false, error: { code: "invalid_request", message: "请求格式错误。" } }); }
+    if (!body || typeof body !== "object" || Array.isArray(body)) {
+      return sendJson(res, 400, { ok: false, error: { code: "invalid_request", message: "请求格式错误。" } });
+    }
     const text = typeof body.text === "string" ? body.text.trim() : "";
     if (!text || text.length > 1500) return sendJson(res, 400, { ok: false, error: { code: "invalid_request", message: "消息为空或超过 1500 字。" } });
     const context = body.context && typeof body.context === "object" ? body.context : {};
