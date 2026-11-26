@@ -207,6 +207,9 @@ export function createHandler({ getToken = () => globalThis.Deno?.env.get("QODER
       if (rateLimited(ip)) return respond(429, { ok: false, error: { code: "rate_limited", message: "请求太频繁，稍后再试。这条没有录入。" } });
       let body;
       try { body = await request.json(); } catch { return respond(400, { ok: false, error: { code: "invalid_request", message: "请求格式错误。" } }); }
+      if (!body || typeof body !== "object" || Array.isArray(body)) {
+        return respond(400, { ok: false, error: { code: "invalid_request", message: "请求格式错误。" } });
+      }
       const text = typeof body.text === "string" ? body.text.trim() : "";
       if (!text || text.length > 1500) return respond(400, { ok: false, error: { code: "invalid_request", message: "消息为空或超过 1500 字。" } });
       const parsedContext = readContext(body.context);

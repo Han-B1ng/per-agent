@@ -3,7 +3,7 @@ import type { ExtractContext, ExtractResponse } from "./types";
 
 export { WEIGHTS, computeAll, shiftDate, weekStartOf } from "../../web/engine.js";
 export { applyItems, getGoals, getTimeline, findRecord } from "../../web/ledger.js";
-export { loadPersonal, savePersonal, parsePersonalBackup, clearPersonal, emptyPersonal, genId, getClientId } from "../../web/store.js";
+export { loadPersonal, loadPersonalState, savePersonal, parsePersonalBackup, clearPersonal, emptyPersonal, genId, getClientId } from "../../web/store.js";
 export { SAMPLE_META, buildSampleRecords } from "../../web/sample-data.js";
 export { createChart } from "../../web/chart.js";
 export type { ChartHandle } from "../../web/chart.js";

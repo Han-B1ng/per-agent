@@ -206,6 +206,13 @@ export type BackupParseResult =
   | { ok: true; version: number; ledger: PersonalLedger }
   | { ok: false; code: BackupErrorCode; message: string };
 export type RestoreResult = { ok: true } | { ok: false; code: "storage_failed"; message: string };
+export interface PersonalLoadState {
+  ledger: PersonalLedger;
+  corrupted: boolean;
+  sourceKey: string | null;
+  backupKey: string | null;
+  backupSaved: boolean;
+}
 
 export interface GoalView extends TaskRecord {
   displayStatus: "open" | "overdue" | "paused" | "done";

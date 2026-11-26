@@ -1,6 +1,7 @@
 // 本地持久化：个人记录与样例严格分离。v2 原地迁移 v1，迁移前保留原键以便回退。
 const KEY = "pe.personal.v2";
 const LEGACY_KEY = "pe.personal.v1";
+const CORRUPT_BACKUP_KEY = "pe.personal.corrupt.backup";
 const PERSONAL_VERSION = 2;
 
 export function emptyPersonal() {
@@ -134,18 +135,62 @@ export function parsePersonalBackup(text) {
   return { ok: true, version, ledger: normalized };
 }
 
-export function loadPersonal() {
+function backupCorruptRaw(raw) {
   try {
-    const current = localStorage.getItem(KEY);
-    if (current) return normalize(JSON.parse(current));
-    const legacy = localStorage.getItem(LEGACY_KEY);
-    if (!legacy) return emptyPersonal();
-    const migrated = normalize(JSON.parse(legacy));
-    localStorage.setItem(KEY, JSON.stringify(migrated));
-    return migrated;
+    const existing = localStorage.getItem(CORRUPT_BACKUP_KEY);
+    if (existing === raw) return { backupKey: CORRUPT_BACKUP_KEY, backupSaved: true };
+    const targetKey = existing == null ? CORRUPT_BACKUP_KEY : `${CORRUPT_BACKUP_KEY}.${Date.now()}`;
+    localStorage.setItem(targetKey, raw);
+    return { backupKey: targetKey, backupSaved: true };
   } catch {
-    return emptyPersonal();
+    return { backupKey: null, backupSaved: false };
   }
+}
+
+function parseStoredLedger(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    if (!isObject(parsed)) return { ok: false };
+    return { ok: true, ledger: normalize(parsed) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+export function loadPersonalState() {
+  let current = null;
+  let legacy = null;
+  try {
+    current = localStorage.getItem(KEY);
+    if (current === null) legacy = localStorage.getItem(LEGACY_KEY);
+  } catch {
+    return { ledger: emptyPersonal(), corrupted: false, sourceKey: null, backupKey: null, backupSaved: false };
+  }
+
+  if (current !== null) {
+    const parsed = parseStoredLedger(current);
+    if (parsed.ok) {
+      return { ledger: parsed.ledger, corrupted: false, sourceKey: KEY, backupKey: null, backupSaved: false };
+    }
+    const backup = backupCorruptRaw(current);
+    return { ledger: emptyPersonal(), corrupted: true, sourceKey: KEY, ...backup };
+  }
+
+  if (legacy !== null) {
+    const parsed = parseStoredLedger(legacy);
+    if (parsed.ok) {
+      try { localStorage.setItem(KEY, JSON.stringify(parsed.ledger)); } catch {}
+      return { ledger: parsed.ledger, corrupted: false, sourceKey: LEGACY_KEY, backupKey: null, backupSaved: false };
+    }
+    const backup = backupCorruptRaw(legacy);
+    return { ledger: emptyPersonal(), corrupted: true, sourceKey: LEGACY_KEY, ...backup };
+  }
+
+  return { ledger: emptyPersonal(), corrupted: false, sourceKey: null, backupKey: null, backupSaved: false };
+}
+
+export function loadPersonal() {
+  return loadPersonalState().ledger;
 }
 
 export function savePersonal(p) {
